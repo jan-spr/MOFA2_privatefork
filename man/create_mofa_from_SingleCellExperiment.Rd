@@ -15,11 +15,11 @@ create_mofa_from_SingleCellExperiment(
 \arguments{
 \item{sce}{SingleCellExperiment object}
 
-\item{alt_experiments}{list, that indicates alternative experiments of the SCE object to load as additional views. 
-Default is \code{NULL} (no altExp's loaded).}
+\item{alt_experiments}{list, that indicates alternative experiments of the SCE object to load as views.
+Default is \code{c("main")} (no altExp's loaded).}
 
-\item{assays}{assay(s) of the SCE object to use, default is \code{c('logcounts')}. 
-The first entry specifies the assay of the main experiment, optional further entries are used for the \code{alt_experiments}.}
+\item{assays}{list, assay(s) of the SCE object to use, each entry specifies assay of the respective entry in \code{alt_experiments}.
+Default is \code{c('logcounts')}.}
 
 \item{groups}{a string specifying column name of the colData to use it as a group variable. 
 Alternatively, a character vector with group assignment for every sample.
@@ -31,7 +31,7 @@ Default is \code{NULL} (no group structure).}
 Returns an untrained \code{\link{MOFA}} object
 }
 \description{
-Method to create a \code{\link{MOFA}} object from a SingleCellExperiment object.
+Method to create a \code{\link{MOFA}} object from a SingleCellExperiment object. Multiple views can be loaded using the "alternative Experiments" slots.
 }
 \examples{
 # Minimal Example

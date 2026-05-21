@@ -16,13 +16,13 @@ create_mofa_from_MultiAssayExperiment(
 \arguments{
 \item{mae}{a \code{\link[MultiAssayExperiment:MultiAssayExperiment]{MultiAssayExperiment}} object}
 
-\item{experiments}{optional list, indicating which experiments of the MAE object to load, by indices or names.
-Default is \code{NULL} (use all Experiments).}
+\item{experiments}{optional list, experiments of the MAE object to load, by indices or names.
+Default is \code{NULL} (all Experiments).}
 
-\item{alt_experiments}{optional list, when using altExp slots (e.g. with \code{SingleCellExperiment}), altExp to use for each experiment (view). See also \code{\link{create_mofa_from_SingleCellExperiment}}.
+\item{alt_experiments}{optional list, altExp to use for each experiment (when applicable, see also \code{\link{create_mofa_from_SingleCellExperiment}}).
 Default is \code{NULL} (no altExp's).}
 
-\item{assays}{list indicating internal assays to use for each experiment of the \code{\link[MultiAssayExperiment:MultiAssayExperiment]{MultiAssayExperiment}} object.
+\item{assays}{optional list, assays to use for each experiment of the \code{\link[MultiAssayExperiment:MultiAssayExperiment]{MultiAssayExperiment}} object.
 Default is \code{NULL} (using first slots).}
 
 \item{groups}{a string specifying column name of the colData to use it as a group variable. 
@@ -35,7 +35,8 @@ Default is \code{NULL} (no group structure).}
 Returns an untrained \code{\link{MOFA}} object
 }
 \description{
-Method to create a \code{\link{MOFA}} object from a \code{\link[MultiAssayExperiment:MultiAssayExperiment]{MultiAssayExperiment}} object. Loads the listed experiments as different views.
+Method to create a \code{\link{MOFA}} object from a \code{\link[MultiAssayExperiment:MultiAssayExperiment]{MultiAssayExperiment}} object.
+Loads the listed experiments as different views, optionally for each experiment the \code{assay} and/or \code{altExp} slot to load can be specified.
 }
 \examples{
 # Using the miniACC data transform RNASeq assays and select three experiments for MOFA

@@ -43,6 +43,7 @@ create_mofa <- function(data, assays = NULL, groups = NULL, extract_metadata = T
     } else {
       alt_experiments <- c("main")
     }
+    # if (is.null(assays)) assays <- c("logcounts")
     object <- create_mofa_from_SingleCellExperiment(data, assays = assays, groups=groups, alt_experiments = alt_experiments, extract_metadata = extract_metadata)
     
     
@@ -75,13 +76,14 @@ create_mofa <- function(data, assays = NULL, groups = NULL, extract_metadata = T
 
 #' @title create a MOFA object from a MultiAssayExperiment object
 #' @name create_mofa_from_MultiAssayExperiment
-#' @description Method to create a \code{\link{MOFA}} object from a \code{\link[MultiAssayExperiment:MultiAssayExperiment]{MultiAssayExperiment}} object. Loads the listed experiments as different views.
+#' @description Method to create a \code{\link{MOFA}} object from a \code{\link[MultiAssayExperiment:MultiAssayExperiment]{MultiAssayExperiment}} object.
+#' Loads the listed experiments as different views, optionally for each experiment the \code{assay} and/or \code{altExp} slot to load can be specified.
 #' @param mae a \code{\link[MultiAssayExperiment:MultiAssayExperiment]{MultiAssayExperiment}} object
-#' @param experiments optional list, indicating which experiments of the MAE object to load, by indices or names.
-#' Default is \code{NULL} (use all Experiments).
-#' @param alt_experiments optional list, when using altExp slots (e.g. with \code{SingleCellExperiment}), altExp to use for each experiment (view). See also \code{\link{create_mofa_from_SingleCellExperiment}}.
+#' @param experiments optional list, experiments of the MAE object to load, by indices or names.
+#' Default is \code{NULL} (all Experiments).
+#' @param alt_experiments optional list, altExp to use for each experiment (when applicable, see also \code{\link{create_mofa_from_SingleCellExperiment}}).
 #' Default is \code{NULL} (no altExp's).
-#' @param assays list indicating internal assays to use for each experiment of the \code{\link[MultiAssayExperiment:MultiAssayExperiment]{MultiAssayExperiment}} object.
+#' @param assays optional list, assays to use for each experiment of the \code{\link[MultiAssayExperiment:MultiAssayExperiment]{MultiAssayExperiment}} object.
 #' Default is \code{NULL} (using first slots).
 #' @param groups a string specifying column name of the colData to use it as a group variable. 
 #' Alternatively, a character vector with group assignment for every sample.
@@ -110,7 +112,7 @@ create_mofa_from_MultiAssayExperiment <- function(mae, experiments = NULL, alt_e
   if(!requireNamespace("MultiAssayExperiment", quietly = TRUE)){
     stop("Package \"MultiAssayExperiment\" is required but is not installed.", call. = FALSE)
   } else {
-    # Select altExps for each experiment of MAE-ExperimentList
+    # Select each experiment of MAE-ExperimentList
     mae <- .select_experiments_MAE(mae, experiments)
 
     # Select altExps for each experiment of MAE-ExperimentList
@@ -319,15 +321,15 @@ create_mofa_from_df <- function(df, extract_metadata = TRUE) {
 
 #' @title create a MOFA object from a SingleCellExperiment object
 #' @name create_mofa_from_SingleCellExperiment
-#' @description Method to create a \code{\link{MOFA}} object from a SingleCellExperiment object.
+#' @description Method to create a \code{\link{MOFA}} object from a SingleCellExperiment object. Multiple views can be loaded using the "alternative Experiments" slots.
 #' @param sce SingleCellExperiment object
-#' @param assays assay(s) of the SCE object to use, default is \code{c('logcounts')}. 
-#' The first entry specifies the assay of the main experiment, optional further entries are used for the \code{alt_experiments}.
+#' @param alt_experiments list, that indicates alternative experiments of the SCE object to load as views.
+#' Default is \code{c("main")} (no altExp's loaded).
+#' @param assays list, assay(s) of the SCE object to use, each entry specifies assay of the respective entry in \code{alt_experiments}.
+#' Default is \code{c('logcounts')}.
 #' @param groups a string specifying column name of the colData to use it as a group variable. 
 #' Alternatively, a character vector with group assignment for every sample.
 #' Default is \code{NULL} (no group structure).
-#' @param alt_experiments list, that indicates alternative experiments of the SCE object to load as additional views. 
-#' Default is \code{NULL} (no altExp's loaded).
 #' @param extract_metadata logical indicating whether to incorporate the metadata from the SingleCellExperiment object into the MOFA object
 #' @return Returns an untrained \code{\link{MOFA}} object
 #' @export
@@ -365,7 +367,7 @@ create_mofa_from_SingleCellExperiment <- function(sce, alt_experiments = c("main
   } else {
     # Check that assays and alt_experiments lists/vectors match in length
     if (length(assays)!=length(alt_experiments)) {
-      stop("length of passed `assays` must match `alt_experiments` (1 if not using alExp's).")
+      stop("length of passed `assays` must match `alt_experiments` (1 by default).")
     }
     
     # Define groups of cells
@@ -403,7 +405,7 @@ create_mofa_from_SingleCellExperiment <- function(sce, alt_experiments = c("main
         
     # Set views & groups names
     groups_names(object) <- as.character(names(data_matrices[[1]]))
-    views_names(object)  <- c(alt_experiments)
+    views_names(object) <- names(data_matrices)
     
     # Set metadata
     if (extract_metadata) {
@@ -699,24 +701,31 @@ create_mofa_from_matrix <- function(data, groups = NULL) {
       stop("Package \"SingleCellExperiment\" is required but is not installed.", call. = FALSE)
     }
     # checks:
-    # 1. that entries/experiments have altExp attribute
+    # 1. that entries/experiments a) is SCE and b) have altExp attribute
     # 2. that alt_exp is in MAE experiment
+    # 3. that alt_exp is not NA
     stopifnot("Error: Length of alt_experiments doesn't match MAE Experiment list." = length(alt_experiments)==length(experiments(mae)))
     for (i in seq_along(experiments(mae))) {
       alt_exp <- alt_experiments[[i]]
+      # Explicitly reject NA (NULL is allowed and treated as "main" below)
+      if (length(alt_exp) == 1L && is.na(alt_exp)) {
+        stop(paste0("alt_experiments entry ", i, " (experiment `", names(mae)[i], "`) is NA.
+        Use \"main\" or NULL to select the main experiment."), call. = FALSE)
+      }
       # a. select main exp if specified
-      if (alt_exp == "main" || is.null(alt_exp) || length(alt_exp) == 0) {
+      if (is.null(alt_exp) || length(alt_exp) == 0 || alt_exp == "main") {
         message(paste0("Selecting main Experiment of experiment `",names(mae)[i],"`."))
         altExps(mae[[i]]) <- list()
       } else {
         # 2. stop if exp i doesn't have altExps or name is wrong
+        stopifnot("Error: Experiment is not a SCE object." = is(mae[[i]], "SingleCellExperiment"))
         stopifnot("Error: Experiment does not contain altExps." = length(altExpNames(mae[[i]]))>0)
         if(alt_exp %in% altExpNames(mae[[i]])){
           message(paste0("Selecting altExp `",alt_exp,"` of experiment `",names(mae)[i],"`."))
           # b. overwrite main exp by specified altExp
           mae[[i]] <- altExp(mae[[i]], alt_exp)
         } else {
-          stop(paste0("error: Experiment `",names(mae)[i],"` does contain altExp `",alt_exp,"`."))
+          stop(paste0("error: Experiment `",names(mae)[i],"` does not contain altExp `",alt_exp,"`."))
         }
       }
     }
@@ -770,52 +779,60 @@ create_mofa_from_matrix <- function(data, groups = NULL) {
   .split_data_into_groups(list(data), groups)[[1]]
 }
 
-# (Hidden) function to select altExps from SingleCellExperiment object and split data into groups
-.split_sce_into_groups_alt <-function(sce, groups, alt_experiments, assays) {
-    # 1. select assay from each altExp and put it into data list
-    data_list <- list()
-    if (!is.null(alt_experiments)) {
-      for (i in seq_along(alt_experiments)) {
-        # a. get Exp label and check whether it is the main or an altExp
-        alt_exp <- alt_experiments[i]
-        assay   <- assays[i]
-        if (alt_exp == "main" || alt_exp == "Main" || is.null(alt_exp) || length(alt_exp) == 0){
-          # return main experiment
-          se_object <- sce
-        } else {
-          # return altExp
-          if(!(alt_exp %in% names(altExps(sce)))){stop(paste0("altExp `",alt_exp,"` not in SCE object"))}
-          stopifnot("altExp is not a SummarizedExperiment"=is(altExps(sce)[[alt_exp]], "SummarizedExperiment"))
-          se_object <- altExp(sce, alt_exp)
-        }
-        # b. extract specified assay and append it to data list
-        if(!(assay %in% assayNames(se_object))){
-          stop(paste0("Error: assay `",assay,"` not found in altExp `",alt_exp,"`."))
-        }
-        message(paste0("Selecting assay `",assay,"` of altExp `",alt_exp,"`."))
-        data_list[[i]] <- assays(se_object)[[assay]]
-      }
+# (Hidden) resolve one alt_experiments entry to a canonical label: "main" or an
+# altExp name. Accepts "main"/"Main", an altExp name, or a numeric altExp index.
+.resolve_alt_exp <- function(alt_exp, sce) {
+  # a. main experiment (NULL/empty is also treated as "main")
+  if (is.null(alt_exp) || length(alt_exp) == 0 || alt_exp == "main" || alt_exp == "Main") {
+    return("Main")
+  }
+  # b. numeric index into the altExps
+  if (is.numeric(alt_exp)) {
+    stopifnot(
+      "altExp index must be a whole number" = alt_exp %% 1 == 0,
+      "altExp index is out of range"        = alt_exp >= 1 && alt_exp <= length(altExps(sce))
+    )
+    return(altExpNames(sce)[alt_exp])
+  }
+  # c. altExp referenced by name
+  if (!(alt_exp %in% altExpNames(sce))) {
+    hint <- if (grepl("^[0-9]+$", alt_exp)) {
+      " (looks like a numeric index - pass \"alt_experiments = list(...)\", to mix names and indices)"
     } else {
-      stop("No experiment layers of the SCE specified.")
+      ""
     }
-    # 2. set matrices names
-    names(data_list) <- c(alt_experiments)
-    # 3. split matrix list into groups with .split_data_into_groups
-    data_matrices <- .split_data_into_groups(data_list, groups)
-    return(data_matrices)
+    stop(paste0("altExp `", alt_exp, "` not in SCE object", hint, "."))
+  }
+  return(alt_exp)
 }
 
-# (Hidden) function to split data in a SingleCellExperiment object into a list of matrices
-#.split_sce_into_groups <- function(sce, groups, assay) {
-#  
-#  if(!requireNamespace("SummarizedExperiment", quietly = TRUE)){
-#    stop("Package \"SummarizedExperiment\" is required but is not installed.", call. = FALSE)
-#  } else {
-#    
-#    data <- SummarizedExperiment::assay(sce, i = assay)
-#    .split_data_into_groups(list(data), groups)[[1]]
-#  }
-#}
+# (Hidden) function to select altExps from SingleCellExperiment object and split data into groups
+.split_sce_into_groups_alt <- function(sce, groups, alt_experiments, assays) {
+  if (is.null(alt_experiments)) {
+    stop("No experiment layers of the SCE specified.")
+  }
+  # 1. resolve each entry to a canonical label and pull out the requested assay
+  data_list <- vector("list", length(alt_experiments))
+  resolved_names <- character(length(alt_experiments))
+  for (i in seq_along(alt_experiments)) {
+    alt_exp <- .resolve_alt_exp(alt_experiments[[i]], sce)
+    assay <- assays[[i]]
+    resolved_names[i] <- alt_exp
+    # a. select the main experiment or the resolved altExp
+    se_object <- if (alt_exp == "Main") sce else altExp(sce, alt_exp)
+    stopifnot("altExp is not a SummarizedExperiment" = is(se_object, "SummarizedExperiment"))
+    # b. extract the requested assay
+    if (!(assay %in% assayNames(se_object))) {
+      stop(paste0("Error: assay `", assay, "` not found in experiment `", alt_exp, "`."))
+    }
+    message(paste0("Selecting assay `", assay, "` of experiment `", alt_exp, "`."))
+    data_list[[i]] <- assays(se_object)[[assay]]
+  }
+  # 2. name views by resolved experiment labels, split into groups
+  names(data_list) <- resolved_names
+  data_matrices <- .split_data_into_groups(data_list, groups)
+  return(data_matrices)
+}
 
 # (Hidden) function to fill NAs for missing samples
 .subset_augment<-function(mat, samp) {

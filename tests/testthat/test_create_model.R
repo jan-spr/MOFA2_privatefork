@@ -5,7 +5,7 @@ test_that("a model can be created from a list of matrices", {
 	m <- as.matrix(read.csv('matrix.csv'))
 	expect_warning(create_mofa(list("view1" = m)))  # no feature names provided
 	rownames(m) <- paste("feature", seq_len(nrow(m)), paste = "", sep = "")
-	expect_is(create_mofa(list("view1" = m)), "MOFA")
+	expect_s4_class(create_mofa(list("view1" = m)), "MOFA")
 	expect_error(create_mofa(m))
 })
 
@@ -21,7 +21,7 @@ test_that("a model can be created from a list of sparse matrices", {
 	# Set sample names
 	colnames(m) <- paste("sample_", seq_len(ncol(m)), paste = "", sep = "")
 	# Test if a sparse matrix can be imported to the MOFA
-	expect_is(create_mofa(list("view1" = m)), "MOFA")
+	expect_s4_class(create_mofa(list("view1" = m)), "MOFA")
 })
 
 test_that("a model can be created from a Seurat object", {
@@ -36,7 +36,7 @@ test_that("a model can be created from a Seurat object", {
 	rownames(m) <- genes
 	srt <- SeuratObject::CreateSeuratObject(m)
 	# only for testing purpose, should use scale.data
-	expect_is(create_mofa(srt, features = genes, layer = "counts"), "MOFA")
+	expect_s4_class(create_mofa(srt, features = genes, layer = "counts"), "MOFA")
 })
 
 test_that("a list of matrices per view is split correctly into a nested list of matrices according to samples groups", {
@@ -66,52 +66,42 @@ test_that("a model can be created from a MultiAssayExperiment Object", {
 	library(MultiAssayExperiment)
 	library(SummarizedExperiment)
 
-	# Import and preprocessing of miniACC Data
-	data(miniACC)
-	miniACC <- intersectColumns(miniACC)
-	mae_sub <- miniACC
-	experiments(mae_sub) <- experiments(miniACC)[
-		c("RNASeq2GeneNorm","RPPAArray","Mutations","miRNASeqGene")
-	]
-	#mae_sub <- miniACC[,,c("RNASeq2GeneNorm","RPPAArray","Mutations","miRNASeqGene")]
-	rownames(mae_sub[["RNASeq2GeneNorm"]]) <- paste0(rownames(mae_sub[["RNASeq2GeneNorm"]]), "_1")
-	rownames(mae_sub[["RPPAArray"]]) <- paste0(rownames(mae_sub[["RPPAArray"]]), "_2")
-	rownames(mae_sub[["Mutations"]]) <- paste0(rownames(mae_sub[["Mutations"]]), "_3")
-	rownames(mae_sub[["miRNASeqGene"]]) <- paste0(rownames(mae_sub[["miRNASeqGene"]]), "_4")
-
-	
-	
-	# apply log1p to the RNASeq
-	se <- mae_sub[["RNASeq2GeneNorm"]]
-	assay(se, "log1p") <- log1p(assay(se, "exprs"))
-	mae_sub[["RNASeq2GeneNorm"]] <- se
-
-	# apply log1p to the miRNASeq
-	se <- mae_sub[["miRNASeqGene"]]
-	assay(se, "log1p") <- log1p(assay(se, "exprs"))
-	mae_sub[["miRNASeqGene"]] <- se
+	# Import and preprocess the miniACC fixture (see helper-mae.R)
+	mae_sub <- make_test_mae()
 
 	# create MOFA model
+	# "" drops the Mutations experiment, leaving 3 views
 	model <- create_mofa(
 		mae_sub,
 		assays = c("log1p", "exprs", "",'log1p'),
 		extract_metadata = TRUE
 	)
-	# Warning: duplicated feature names
-	
 
 	# do checks
 	# class check
-	expect_is(model, "MOFA")
+	expect_s4_class(model, "MOFA")
 
 	#check dimensions
 	expect_equal(get_dimensions(model)$M,3) # right number of views
+
+	# right views retained (Mutations dropped via "")
+	expect_equal(
+		views_names(model),
+		c("RNASeq2GeneNorm", "RPPAArray", "miRNASeqGene")
+	)
 
 	# right data matrix
 	expect_equivalent(
 		get_data(model, views = c("RPPAArray"))$RPPAArray$group1,
 		assay(mae_sub[["RPPAArray"]])
-	) 
+	)
+
+	# extract_metadata should propagate colData onto the MOFA object
+	meta <- samples_metadata(model)
+	cd <- as.data.frame(colData(mae_sub))
+	metadata_col <- colnames(cd)[1]
+	expect_true(all(c("sample", "group", metadata_col) %in% colnames(meta)))
+	expect_equal(meta[[metadata_col]], cd[meta$sample, metadata_col])
 
 	#check also with HintikkaXOData
 
@@ -133,12 +123,12 @@ test_that("a model can be created from a MultiAssayExperiment Object - HintikkaX
 	MOFAobject <- create_mofa(
 		mae,
 		alt_experiments = list("asd", "main", "main"),
-		assays = list("counts",NULL,"signals"),
+		assays = list("counts",NULL,"signals")
 	)
 
 	# do checks
 	# class check
-	expect_is(MOFAobject, "MOFA")
+	expect_s4_class(MOFAobject, "MOFA")
 
 	#check dimensions
 	expect_equal(get_dimensions(MOFAobject)$M,2) # right number of views
@@ -147,12 +137,12 @@ test_that("a model can be created from a MultiAssayExperiment Object - HintikkaX
 		mae,
 		experiments = c("microbiota","biomarkers"),
 		alt_experiments = list("asd", "main"),
-		assays = list("counts","signals"),
+		assays = list("counts","signals")
 	)
 
 	# do checks
 	# class check
-	expect_is(MOFAobject, "MOFA")
+	expect_s4_class(MOFAobject, "MOFA")
 
 	#check dimensions
 	expect_equal(get_dimensions(MOFAobject)$M,2) # right number of views
@@ -183,19 +173,23 @@ test_that("a model can be created from a SingleCellExperiment Object", {
 	# create MOFA model
 	MOFAobject <- create_mofa_from_SingleCellExperiment(
 		sce,
-		alt_experiments = c("Main","Drugs", "Methylation", "Mutations"), 
+		alt_experiments = c("Main","Drugs", "Methylation", "Mutations"),
 		assays = c("mRNA","expr","expr","expr"),
-		groups = "IGHV_filled"
+		groups = "IGHV_filled",
+		extract_metadata = TRUE
 	)
 
 	# do checks
 	# class check
-	expect_is(MOFAobject, "MOFA")
-	# right feature metadata (sample metadata not implemented)
-	expect_identical(colData(sce)$sample, CLL_metadata$sample)
-	expect_identical(colData(sce)$treatedAfter, CLL_metadata$treatedAfter)
-	expect_identical(colData(sce)$age, CLL_metadata$age)
-	expect_identical(colData(sce)$IGHV_filled, CLL_metadata$IGHV_filled)
+	expect_s4_class(MOFAobject, "MOFA")
+
+	# extract_metadata should propagate the SCE colData onto the MOFA object.
+	# Samples are reordered by group, so match on the sample column.
+	meta <- samples_metadata(MOFAobject)
+	cd <- as.data.frame(colData(sce))
+	expect_true(all(c("age", "IGHV_filled") %in% colnames(meta)))
+	expect_equal(meta$IGHV_filled, cd[meta$sample, "IGHV_filled"])
+	expect_equal(meta$age, cd[meta$sample, "age"])
 
 	# right data matrix - with groups
 	expect_equivalent(
@@ -223,6 +217,74 @@ test_that("a model can be created from a SingleCellExperiment Object", {
 	)
 })
 
+test_that("MAE experiments can be selected by numeric index", {
+	skip_if_not_installed("MultiAssayExperiment")
+	library(MultiAssayExperiment)
+	library(SummarizedExperiment)
+
+	mae_sub <- make_test_mae()  # 4 experiments (see helper-mae.R)
+
+	# Select experiments 1, 2 and 4 by index (drops Mutations at index 3).
+	# assays are matched positionally to the *selected* experiments.
+	model <- create_mofa(
+		mae_sub,
+		experiments = c(1, 2, 4),
+		assays = list("log1p", "exprs", "log1p")
+	)
+
+	expect_s4_class(model, "MOFA")
+	expect_equal(get_dimensions(model)$M, 3)
+	expect_equal(
+		views_names(model),
+		c("RNASeq2GeneNorm", "RPPAArray", "miRNASeqGene")
+	)
+
+	# selecting by index and by name should give the same object
+	model_by_name <- create_mofa(
+		mae_sub,
+		experiments = c("RNASeq2GeneNorm", "RPPAArray", "miRNASeqGene"),
+		assays = list("log1p", "exprs", "log1p")
+	)
+	expect_equivalent(get_data(model), get_data(model_by_name))
+})
+
+test_that("SCE alt_experiments can be selected by numeric index", {
+	skip_if_not_installed("SingleCellExperiment")
+	library(SingleCellExperiment)
+	library(SummarizedExperiment)
+
+	set.seed(1)
+	main <- matrix(rnorm(20 * 10), nrow = 20,
+		dimnames = list(paste0("g1_", 1:20), paste0("s_", 1:10)))
+	alt <- matrix(rnorm(15 * 10), nrow = 15,
+		dimnames = list(paste0("g2_", 1:15), paste0("s_", 1:10)))
+	sce <- SingleCellExperiment(
+		assays = list(counts = main),
+		altExps = list(alt_data = SummarizedExperiment(list(counts = alt)))
+	)
+
+	# reference the altExp by numeric index (1 == "alt_data"), mixed with the
+	# main experiment. Numeric entries require the list() form of alt_experiments.
+	model <- create_mofa_from_SingleCellExperiment(
+		sce,
+		alt_experiments = list("main", 1),
+		assays = c("counts", "counts")
+	)
+
+	expect_s4_class(model, "MOFA")
+	expect_equal(get_dimensions(model)$M, 2)
+	# numeric index should resolve to the altExp name
+	expect_equal(views_names(model), c("Main", "alt_data"))
+
+	# index and name should select the same altExp data
+	model_by_name <- create_mofa_from_SingleCellExperiment(
+		sce,
+		alt_experiments = c("main", "alt_data"),
+		assays = c("counts", "counts")
+	)
+	expect_equivalent(get_data(model), get_data(model_by_name))
+})
+
 test_that("mofa2 wrapper correctly initializes MOFAobject", {
 	#check that manually setting the parameters creates the same model as the mofa2() wrapper
 
@@ -231,27 +293,8 @@ test_that("mofa2 wrapper correctly initializes MOFAobject", {
 	library(MultiAssayExperiment)
 	library(SummarizedExperiment)
 
-	# Import and preprocessing of miniACC Data
-	data(miniACC)
-	miniACC <- intersectColumns(miniACC)
-	mae_sub <- miniACC
-	experiments(mae_sub) <- experiments(miniACC)[
-		c("RNASeq2GeneNorm","RPPAArray","Mutations","miRNASeqGene")
-	]
-	rownames(mae_sub[["RNASeq2GeneNorm"]]) <- paste0(rownames(mae_sub[["RNASeq2GeneNorm"]]), "_1")
-	rownames(mae_sub[["RPPAArray"]]) <- paste0(rownames(mae_sub[["RPPAArray"]]), "_2")
-	rownames(mae_sub[["Mutations"]]) <- paste0(rownames(mae_sub[["Mutations"]]), "_3")
-	rownames(mae_sub[["miRNASeqGene"]]) <- paste0(rownames(mae_sub[["miRNASeqGene"]]), "_4")
-
-	# apply log1p to the RNASeq
-	se <- mae_sub[["RNASeq2GeneNorm"]]
-	assay(se, "log1p") <- log1p(assay(se, "exprs"))
-	mae_sub[["RNASeq2GeneNorm"]] <- se
-
-	# apply log1p to the miRNASeq
-	se <- mae_sub[["miRNASeqGene"]]
-	assay(se, "log1p") <- log1p(assay(se, "exprs"))
-	mae_sub[["miRNASeqGene"]] <- se
+	# Import and preprocess the miniACC fixture (see helper-mae.R)
+	mae_sub <- make_test_mae()
 
 	# 2. create MOFA instances
 	MOFA_init <- create_mofa(
