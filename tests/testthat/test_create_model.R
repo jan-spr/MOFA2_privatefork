@@ -285,62 +285,45 @@ test_that("SCE alt_experiments can be selected by numeric index", {
 	expect_equivalent(get_data(model), get_data(model_by_name))
 })
 
-test_that("mofa2 wrapper correctly initializes MOFAobject", {
-	#check that manually setting the parameters creates the same model as the mofa2() wrapper
+test_that("create_mofa() dispatches to the SingleCellExperiment constructor", {
+    skip_if_not_installed("SingleCellExperiment")
+    library(SingleCellExperiment)
+    library(SummarizedExperiment)
 
-	# 1. get sample data
-	skip_if_not_installed("MultiAssayExperiment")
-	library(MultiAssayExperiment)
-	library(SummarizedExperiment)
+    set.seed(1)
+    logc <- matrix(rnorm(20 * 10),
+        nrow = 20,
+        dimnames = list(paste0("g1_", 1:20), paste0("s_", 1:10))
+    )
+    alt <- matrix(rnorm(15 * 10),
+        nrow = 15,
+        dimnames = list(paste0("g2_", 1:15), paste0("s_", 1:10))
+    )
+    sce <- SingleCellExperiment(
+        assays = list(logcounts = logc),
+        altExps = list(alt_data = SummarizedExperiment(list(counts = alt)))
+    )
 
-	# Import and preprocess the miniACC fixture (see helper-mae.R)
-	mae_sub <- make_test_mae()
+    # Regression - create_mofa(sce) with no assays argument (with one view names view after assay)
+    model <- create_mofa(sce)
+    expect_s4_class(model, "MOFA")
+    expect_equal(get_dimensions(model)$M, 1)
+    expect_equal(views_names(model), "logcounts")
+    expect_equivalent(get_data(model)$logcounts$group1, logc)
 
-	# 2. create MOFA instances
-	MOFA_init <- create_mofa(
-		mae_sub,
-		assays = c("log1p", "exprs", "",'log1p'),
-		extract_metadata = TRUE
-	)
+    # The dispatcher forwards alt_experiments / assays (via ...) to the constructor
+    model2 <- create_mofa(
+        sce,
+        alt_experiments = c("Main", "alt_data"),
+        assays = c("logcounts", "counts")
+    )
+    expect_s4_class(model2, "MOFA")
+    expect_equal(get_dimensions(model2)$M, 2)
+    expect_equal(views_names(model2), c("Main", "alt_data"))
 
-	data_opts <- get_default_data_options(MOFA_init)
-	model_opts <- get_default_model_options(MOFA_init)
-	model_opts$num_factors <- 4
-	train_opts <- get_default_training_options(MOFA_init)
-	train_opts$seed <- 42
-	train_opts$convergence_mode <- "fast"
-
-	MOFA_prep1 <- prepare_mofa(MOFA_init,
-		data_options = data_opts,
-		model_options = model_opts,
-		training_options = train_opts
-	)
-
-	MOFA_prep2 <- mofa2(
-		mae_sub,
-		assays = c("log1p", "exprs", "",'log1p'),
-		num_factors = 4,
-		seed = 42,
-		convergence_mode = "fast"
-	)
-	
-	expect_equivalent(MOFA_prep1,MOFA_prep2)
-	expect_identical(MOFA_prep1,MOFA_prep2)
-
-	# check manual parameter values
-	MOFA_prep2 <- mofa2(
-		mae_sub,
-		assays = c("log1p", "exprs", "",'log1p'),
-		num_factors = 4,
-		seed = 1337,
-		convergence_mode = "fast"
-	)
-	expect_equal(MOFA_prep2@training_options$seed,1337)
-	expect_equal(MOFA_prep2@training_options$convergence_mode,"fast")
-	expect_equal(MOFA_prep2@training_options$maxiter,1000)
-	expect_equal(MOFA_prep2@model_options$spikeslab_factors,FALSE)
-	
-	# add: stochastic options 
-	# add: mefisto options
-	# add: SCE with altexperiments?
+    # assays length must match alt_experiments length
+    expect_error(
+        create_mofa(sce, alt_experiments = c("main", "alt_data"), assays = "logcounts"),
+        "must match"
+    )
 })

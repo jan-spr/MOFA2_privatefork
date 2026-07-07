@@ -28,12 +28,25 @@
 #' MOFAmodel <- create_mofa(dt)
 create_mofa <- function(data, assays = NULL, groups = NULL, extract_metadata = TRUE, ...) {
   dots <- list(...)
-  
+
+  # `assays` is unused for matrix-list / data.frame input; a value here is most
+  # likely a positional `groups` that landed in the wrong slot
+  if (!is.null(assays) && (is(data, "list") || is(data, "data.frame"))) {
+    stop("`assays` is not used for matrix-list or data.frame input. ",
+         "If you meant to specify sample groups, pass them with `groups=`.",
+         call. = FALSE)
+  }
+
   # Creating MOFA object from a Seurat object
   if (is(data, "Seurat")) {
     
     message("Creating MOFA object from a Seurat object...")
-    object <- create_mofa_from_Seurat(data, groups, assays, layer = dots[["layer"]], features = dots[["features"]], extract_metadata = extract_metadata)
+    object <- create_mofa_from_Seurat(
+      data, groups, assays, 
+      layer = if (is.null(dots[["layer"]])) "data" else dots[["layer"]],
+      features = dots[["features"]], 
+      extract_metadata = extract_metadata
+    )
     
     # Creating MOFA object from a SingleCellExperiment object
   } else if (is(data, "SingleCellExperiment")) {
@@ -43,7 +56,6 @@ create_mofa <- function(data, assays = NULL, groups = NULL, extract_metadata = T
     } else {
       alt_experiments <- c("main")
     }
-    # if (is.null(assays)) assays <- c("logcounts")
     object <- create_mofa_from_SingleCellExperiment(data, assays = assays, groups=groups, alt_experiments = alt_experiments, extract_metadata = extract_metadata)
     
     
@@ -365,6 +377,8 @@ create_mofa_from_SingleCellExperiment <- function(sce, alt_experiments = c("main
   else if(!requireNamespace("SummarizedExperiment", quietly = TRUE)){
     stop("Package \"SummarizedExperiment\" is required but is not installed.", call. = FALSE)
   } else {
+    # Apply default assay when NULL (e.g. create_mofa() forwarding assays = NULL)
+    if (is.null(assays)) assays <- c("logcounts")
     # Check that assays and alt_experiments lists/vectors match in length
     if (length(assays)!=length(alt_experiments)) {
       stop("length of passed `assays` must match `alt_experiments` (1 by default).")
@@ -829,7 +843,12 @@ create_mofa_from_matrix <- function(data, groups = NULL) {
     data_list[[i]] <- assays(se_object)[[assay]]
   }
   # 2. name views by resolved experiment labels, split into groups
-  names(data_list) <- resolved_names
+  if (identical(resolved_names, "Main")) {
+    # if only main experiment loaded name view by assay
+    names(data_list) <- assays
+  } else {
+    names(data_list) <- resolved_names
+  }
   data_matrices <- .split_data_into_groups(data_list, groups)
   return(data_matrices)
 }

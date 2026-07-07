@@ -1,17 +1,17 @@
 #' @title One-liner wrapper to create a MOFA2 object from multiple input objects and ready for training
 #' @name mofa2
 #' @description
-#' This is a one-line wrapper that combines the use of \code{\link[create_mofa]{create_mofa}} followed by \code{\link[prepare_mofa]{prepare_mofa}}.
+#' This is a one-line wrapper that combines the use of \code{\link{create_mofa}} followed by \code{\link{prepare_mofa}}.
 #' Please read the documentation of the corresponding functions for more details.
-#' @param data input data. See \code{\link[create_mofa]{create_mofa}} for details on input data formats.
-#' @param assays Assays to include in MOFA model. Required for \code{\link[MultiAssayExperiment:MultiAssayExperiment]{MultiAssayExperiment}}, \code{\link[SingleCellExperiment:SingleCellExperiment]{SingleCellExperiment}} and \code{\link[SeuratObject:CreateSeuratObject]{Seurat}} objects.
+#' @param data input data. See \code{\link{create_mofa}} for details on input data formats.
+#' @param assays Assays to include in MOFA model. Used for \code{\link[MultiAssayExperiment:MultiAssayExperiment]{MultiAssayExperiment}}, \code{\link[SingleCellExperiment:SingleCellExperiment]{SingleCellExperiment}} and \code{\link[SeuratObject:CreateSeuratObject]{Seurat}} objects.
 #' @param groups One of the variable names of sample metadata from which groups should be derived. Only relevant when using the multi-group framework with one of the three formats above. Default is \code{NULL}.
 #' @param covariates Continuous covariates to use for training with MEFISTO, see also \code{\link{set_covariates}}. Default is \code{NULL} (no covariates).
 #' @param extract_metadata Boolean specifying whether sample metadata from the input object should be propagated to the MOFA2 object  (default is \code{TRUE}).
-#' @param ... additional arguments; either data parameters as in \code{\link[create_mofa]{create_mofa}}, or MOFA model parameters, named as the options of \code{\link[prepare_mofa]{prepare_mofa}}.
+#' @param ... additional arguments; either data parameters as in \code{\link{create_mofa}}, or MOFA model parameters, named as the options of \code{\link{prepare_mofa}}.
 #' 
 #' @return 
-#' Returns an untrained \code{\link[MOFA2:MOFA]{MOFA}} with specified options
+#' Returns an untrained \code{\link{MOFA}} with specified options
 #' filled in the corresponding slots
 #' @export
 #' 
@@ -25,7 +25,7 @@
 #'  mae, 
 #'  experiments = c(1,3),
 #'  assays = list("counts", "signals"), 
-#'  num_factors = 5,
+#'  num_factors = 5
 #' )
 
 #' # Example with long data.frame format (two views and two groups)
@@ -45,7 +45,10 @@ mofa2 <- function(data, assays = NULL, groups = NULL, covariates = NULL, extract
   if (!is.null(covariates)) {
     mofa_obj <- set_covariates(mofa_obj, covariates = covariates)
   }
-  
+
+  # Catch misspelled or unforwarded arguments
+  .check_dots(mofa_obj, ...)
+
   # Make a list of arguments for MOFA
   mofa_args <- list(
     object = mofa_obj,
@@ -69,6 +72,23 @@ mofa2 <- function(data, assays = NULL, groups = NULL, covariates = NULL, extract
 ###########################
 ###### HELP FUNCTIONS #####
 ###########################
+
+# Stop on ... names that neither create_mofa nor any option group will consume
+.check_dots <- function(object, ...) {
+  # names read out of `dots` by create_mofa's format-specific loaders
+  data_args <- c("experiments", "alt_experiments", "layer", "features")
+  # every option name across the five option groups
+  option_args <- unique(c(
+    names(get_default_data_options(object)),
+    names(get_default_model_options(object)),
+    names(get_default_training_options(object)),
+    names(get_default_stochastic_options(object)),
+    names(get_default_mefisto_options(object))
+  ))
+  unknown <- setdiff(names(list(...)), c(data_args, option_args))
+  if (length(unknown) > 0)
+    stop("Unrecognised argument(s) passed to mofa2(): ", paste(unknown, collapse = ", "), call. = FALSE)
+}
 
 # Combine custom options found in ... with default options
 .set_opts <- function(default, ...) {

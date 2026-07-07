@@ -14,9 +14,9 @@ mofa2(
 )
 }
 \arguments{
-\item{data}{input data. See \code{\link[create_mofa]{create_mofa}} for details on input data formats.}
+\item{data}{input data. See \code{\link{create_mofa}} for details on input data formats.}
 
-\item{assays}{Assays to include in MOFA model. Required for \code{\link[MultiAssayExperiment:MultiAssayExperiment]{MultiAssayExperiment}}, \code{\link[SingleCellExperiment:SingleCellExperiment]{SingleCellExperiment}} and \code{\link[SeuratObject:CreateSeuratObject]{Seurat}} objects.}
+\item{assays}{Assays to include in MOFA model. Used for \code{\link[MultiAssayExperiment:MultiAssayExperiment]{MultiAssayExperiment}}, \code{\link[SingleCellExperiment:SingleCellExperiment]{SingleCellExperiment}} and \code{\link[SeuratObject:CreateSeuratObject]{Seurat}} objects.}
 
 \item{groups}{One of the variable names of sample metadata from which groups should be derived. Only relevant when using the multi-group framework with one of the three formats above. Default is \code{NULL}.}
 
@@ -24,14 +24,14 @@ mofa2(
 
 \item{extract_metadata}{Boolean specifying whether sample metadata from the input object should be propagated to the MOFA2 object  (default is \code{TRUE}).}
 
-\item{...}{additional arguments; either data parameters as in \code{\link[create_mofa]{create_mofa}}, or MOFA model parameters, named as the options of \code{\link[prepare_mofa]{prepare_mofa}}.}
+\item{...}{additional arguments; either data parameters as in \code{\link{create_mofa}}, or MOFA model parameters, named as the options of \code{\link{prepare_mofa}}.}
 }
 \value{
-Returns an untrained \code{\link[MOFA2:MOFA]{MOFA}} with specified options
+Returns an untrained \code{\link{MOFA}} with specified options
 filled in the corresponding slots
 }
 \description{
-This is a one-line wrapper that combines the use of \code{\link[create_mofa]{create_mofa}} followed by \code{\link[prepare_mofa]{prepare_mofa}}.
+This is a one-line wrapper that combines the use of \code{\link{create_mofa}} followed by \code{\link{prepare_mofa}}.
 Please read the documentation of the corresponding functions for more details.
 }
 \examples{
@@ -43,7 +43,7 @@ mofa_obj <- mofa2(
  mae, 
  experiments = c(1,3),
  assays = list("counts", "signals"), 
- num_factors = 5,
+ num_factors = 5
 )
 # Example with long data.frame format (two views and two groups)
 file <- system.file("extdata", "test_data.RData", package = "MOFA2")
