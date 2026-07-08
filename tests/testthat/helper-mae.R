@@ -9,9 +9,9 @@
 # calling tests guarantee via skip_if_not_installed() + library().
 make_test_mae <- function() {
 	data(miniACC, package = "MultiAssayExperiment", envir = environment())
-	miniACC <- intersectColumns(miniACC)
+	miniACC <- MultiAssayExperiment::intersectColumns(miniACC)
 	mae_sub <- miniACC
-	experiments(mae_sub) <- experiments(miniACC)[
+	experiments(mae_sub) <- MultiAssayExperiment::experiments(miniACC)[
 		c("RNASeq2GeneNorm", "RPPAArray", "Mutations", "miRNASeqGene")
 	]
 
@@ -24,7 +24,7 @@ make_test_mae <- function() {
 	# Add a log1p assay to the count-based experiments
 	for (nm in c("RNASeq2GeneNorm", "miRNASeqGene")) {
 		se <- mae_sub[[nm]]
-		assay(se, "log1p") <- log1p(assay(se, "exprs"))
+		assay(se, "log1p") <- log1p(SummarizedExperiment::assay(se, "exprs"))
 		mae_sub[[nm]] <- se
 	}
 
