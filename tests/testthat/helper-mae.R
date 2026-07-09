@@ -11,7 +11,7 @@ make_test_mae <- function() {
 	data(miniACC, package = "MultiAssayExperiment", envir = environment())
 	miniACC <- MultiAssayExperiment::intersectColumns(miniACC)
 	mae_sub <- miniACC
-	experiments(mae_sub) <- MultiAssayExperiment::experiments(miniACC)[
+	MultiAssayExperiment::experiments(mae_sub) <- MultiAssayExperiment::experiments(miniACC)[
 		c("RNASeq2GeneNorm", "RPPAArray", "Mutations", "miRNASeqGene")
 	]
 
@@ -24,7 +24,7 @@ make_test_mae <- function() {
 	# Add a log1p assay to the count-based experiments
 	for (nm in c("RNASeq2GeneNorm", "miRNASeqGene")) {
 		se <- mae_sub[[nm]]
-		assay(se, "log1p") <- log1p(SummarizedExperiment::assay(se, "exprs"))
+		SummarizedExperiment::assay(se, "log1p") <- log1p(SummarizedExperiment::assay(se, "exprs"))
 		mae_sub[[nm]] <- se
 	}
 

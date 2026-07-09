@@ -34,6 +34,7 @@ Returns an untrained \code{\link{MOFA}} object
 Method to create a \code{\link{MOFA}} object from a SingleCellExperiment object. Multiple views can be loaded using the "alternative Experiments" slots.
 }
 \examples{
+\dontshow{if (requireNamespace("SingleCellExperiment", quietly = TRUE)) withAutoprint(\{ # examplesIf}
 # Minimal Example
 library(SingleCellExperiment)
 # Create SingleCellExperiment with sample data
@@ -56,4 +57,5 @@ sce <- SingleCellExperiment(
 MOFAobject <- create_mofa_from_SingleCellExperiment(
   sce, assays = c("counts","counts"), alt_experiments = c("Main","alt_data")
 )
+\dontshow{\}) # examplesIf}
 }

@@ -78,7 +78,7 @@ create_mofa <- function(data, assays = NULL, groups = NULL, extract_metadata = T
   } else if(is(data, "MultiAssayExperiment")){
     
     message("Creating MOFA object from a MultiAssayExperiment...")
-    object <- create_mofa_from_MultiAssayExperiment(data, experiments = dots[["experiments"]],  assays = assays, groups = groups, alt_experiments = dots[["alt_experiments"]], extract_metadata = extract_metadata)
+    object <- create_mofa_from_MultiAssayExperiment(data, experiments = dots[["experiments"]], assays = assays, groups = groups, alt_experiments = dots[["alt_experiments"]], extract_metadata = extract_metadata)
   } else {
     stop("Error: input data has to be provided as a list of matrices, a data frame or a Seurat object. Please read the documentation for more details.")
   }
@@ -103,7 +103,7 @@ create_mofa <- function(data, assays = NULL, groups = NULL, extract_metadata = T
 #' @param extract_metadata logical indicating whether to incorporate the metadata from the MultiAssayExperiment object into the MOFA object
 #' @return Returns an untrained \code{\link{MOFA}} object
 #' @export
-#' @examples
+#' @examplesIf requireNamespace("MultiAssayExperiment", quietly = TRUE)
 #' # Using the miniACC data transform RNASeq assays and select three experiments for MOFA
 #' library(MultiAssayExperiment)
 #' data(miniACC)
@@ -123,6 +123,8 @@ create_mofa_from_MultiAssayExperiment <- function(mae, experiments = NULL, alt_e
   # Sanity check
   if(!requireNamespace("MultiAssayExperiment", quietly = TRUE)){
     stop("Package \"MultiAssayExperiment\" is required but is not installed.", call. = FALSE)
+  } else if(!requireNamespace("SummarizedExperiment", quietly = TRUE)){
+    stop("Package \"SummarizedExperiment\" is required but is not installed.", call. = FALSE)
   } else {
     # Select each experiment of MAE-ExperimentList
     mae <- .select_experiments_MAE(mae, experiments)
@@ -345,7 +347,7 @@ create_mofa_from_df <- function(df, extract_metadata = TRUE) {
 #' @param extract_metadata logical indicating whether to incorporate the metadata from the SingleCellExperiment object into the MOFA object
 #' @return Returns an untrained \code{\link{MOFA}} object
 #' @export
-#' @examples
+#' @examplesIf requireNamespace("SingleCellExperiment", quietly = TRUE)
 #' # Minimal Example
 #' library(SingleCellExperiment)
 #' # Create SingleCellExperiment with sample data
@@ -391,8 +393,8 @@ create_mofa_from_SingleCellExperiment <- function(sce, alt_experiments = c("main
     } else {
       if (is(groups,'character')) {
         if (length(groups) == 1) {
-          stopifnot(groups %in% colnames(colData(sce)))
-          groups <- colData(sce)[,groups]
+          stopifnot(groups %in% colnames(SummarizedExperiment::colData(sce)))
+          groups <- SummarizedExperiment::colData(sce)[,groups]
         } else {
           stopifnot(length(groups) == ncol(sce))
         }
@@ -423,7 +425,7 @@ create_mofa_from_SingleCellExperiment <- function(sce, alt_experiments = c("main
     
     # Set metadata
     if (extract_metadata) {
-      object@samples_metadata <- as.data.frame(colData(sce))
+      object@samples_metadata <- as.data.frame(SummarizedExperiment::colData(sce))
       # object@features_metadata <- as.data.frame(rowData(sce))
     }
     
@@ -663,24 +665,23 @@ create_mofa_from_matrix <- function(data, groups = NULL) {
 ###########################
 
 # Select assays from MultiAssayExperiment
-#' @importFrom MultiAssayExperiment experiments
-#' @importFrom SummarizedExperiment assay assays assayNames
 .select_assays_MAE <- function(mae, assay_names) {
   # skip if assay_names is NULL
   if(!is.null(assay_names)) {
     # replace `NULL` entries with character(0)
-    assay_names = as.list(assay_names)
+    assay_names <- as.list(assay_names)
     assay_names <- lapply(assay_names, function(el) {
       if (is.null(el) || length(el) == 0 || el == "") character(0) else el
     })
+    exp_list <- MultiAssayExperiment::experiments(mae)
     # check that assay_names has right length
-    if (length(assay_names) != length(experiments(mae))){
-      stop(paste0("Length of assays list must match number of experiments (num=",length(experiments(mae)),")"))
+    if (length(assay_names) != length(exp_list)){
+      stop(paste0("Length of assays list must match number of experiments (num=",length(exp_list),")"))
     }
     # Give corresponding experiment names to assays
-    names(assay_names) <- names(experiments(mae))
+    names(assay_names) <- names(exp_list)
     # For every experiment in MAE
-    for (exp in names(experiments(mae)) ){
+    for (exp in names(exp_list) ){
       # If assay_name is `NULL` drop the experiment from MAE
       if ( length(assay_names[[exp]]) == 0 ) {
         # Remove experiment from ExperimentList
@@ -690,13 +691,13 @@ create_mofa_from_matrix <- function(data, groups = NULL) {
         # Select given assay if object is SE, otherwise skip
         if (is(mae[[exp]], "SummarizedExperiment")) {
           # check that assay_name is in experiment
-          if (! assay_names[[exp]] %in%  assayNames(mae[[exp]])) {
+          if (! assay_names[[exp]] %in%  SummarizedExperiment::assayNames(mae[[exp]])) {
             stop("Cannot find assay '", assay_names[[exp]], "' in experiment '", exp, "'.")
           }
           # Keep only specified assay_name from the given experiment
           message(paste0("Selecting assay `",assay_names[[exp]],"` for experiment `",exp,"`."))
-          SummarizedExperiment::assays(mae[[exp]]) <- list(assay(mae[[exp]], assay_names[[exp]]))
-          # Update assay names (needed?)
+          SummarizedExperiment::assays(mae[[exp]]) <- list(SummarizedExperiment::assay(mae[[exp]], assay_names[[exp]]))
+          # Update assay names
           SummarizedExperiment::assayNames(mae[[exp]]) <- assay_names[[exp]]
         } else {
           message(paste0("Passing default assay for experiment `",exp,"`."))
@@ -713,9 +714,10 @@ create_mofa_from_matrix <- function(data, groups = NULL) {
 .select_altExps_MAE <- function(mae, alt_experiments) {
   # skip if alt_experiments is NULL
   if (is.null(alt_experiments)) return(mae)
+  exp_list <- MultiAssayExperiment::experiments(mae)
   stopifnot("Length of alt_experiments doesn't match MAE Experiment list." =
-              length(alt_experiments) == length(experiments(mae)))
-  for (i in seq_along(experiments(mae))) {
+              length(alt_experiments) == length(exp_list))
+  for (i in seq_along(exp_list)) {
     res <- .resolve_experiment(mae[[i]], alt_experiments[[i]], name = names(mae)[i])
     if (res$label == "Main") {
       message("Selecting main experiment `", names(mae)[i], "`.")
@@ -730,9 +732,10 @@ create_mofa_from_matrix <- function(data, groups = NULL) {
 .select_experiments_MAE <- function(mae, experiments) {
   # skip if experiments is NULL
   if(!is.null(experiments)) {
+    exp_list <- MultiAssayExperiment::experiments(mae)
     # just works with names for now ToDo: convert indices to names?
     # check input experiments
-    stopifnot("Too many `experiments` passed"=length(experiments) <= length(MultiAssayExperiment::experiments(mae)))
+    stopifnot("Too many `experiments` passed"=length(experiments) <= length(exp_list))
     if (!is.numeric(experiments)){
       stopifnot("Not all passed `experiments` are found in the MAE"=all(experiments %in% names(mae)))
       # Loop through passed experiments and save position in mae
@@ -746,7 +749,7 @@ create_mofa_from_matrix <- function(data, groups = NULL) {
       new_experiments <- experiments
     }
     # subset mae by indices
-    MultiAssayExperiment::experiments(mae) <- MultiAssayExperiment::experiments(mae)[new_experiments]
+    MultiAssayExperiment::experiments(mae) <- exp_list[new_experiments]
     message(paste0("Remaining experiments: ",paste(names(mae), collapse = ", ")))
     stopifnot("Mismatch of subset MAE and passed `experiments`"=length(names(mae))==length(experiments))
   }

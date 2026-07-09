@@ -39,6 +39,7 @@ Method to create a \code{\link{MOFA}} object from a \code{\link[MultiAssayExperi
 Loads the listed experiments as different views, optionally for each experiment the \code{assay} and/or \code{altExp} slot to load can be specified.
 }
 \examples{
+\dontshow{if (requireNamespace("MultiAssayExperiment", quietly = TRUE)) withAutoprint(\{ # examplesIf}
 # Using the miniACC data transform RNASeq assays and select three experiments for MOFA
 library(MultiAssayExperiment)
 data(miniACC)
@@ -53,4 +54,5 @@ model <- create_mofa_from_MultiAssayExperiment(
                     experiments = c("RNASeq2GeneNorm","RPPAArray","miRNASeqGene"),
                     assays = c("log1p", "exprs", 'log1p'),
                     extract_metadata = TRUE)
+\dontshow{\}) # examplesIf}
 }
