@@ -70,8 +70,8 @@ MOFA objects can be created from a wide range of input formats, including:
 - **a long data.frame**: this is recommended for complex data sets with
   multiple views and/or groups.
 - **MultiAssayExperiment**: to connect with Bioconductor objects.
-- **Seurat**: for single-cell genomics users. 
-See [this vignette](https://raw.githack.com/bioFAM/MOFA2/master/MOFA2/vignettes/scRNA_gastrulation.html)
+- **Seurat** (or **SingleCellExperiment**): for single-cell genomics users. 
+See [this vignette](https://htmlpreview.github.io/?https://github.com/bioFAM/MOFA2_tutorials/blob/master/R_tutorials/scRNA_gastrulation.html).
 
 ## List of matrices
 
@@ -105,7 +105,7 @@ using the `groups` argument as a vector with the group ID for each sample.
 Keep in mind that the multi-group functionality is a rather advanced option that we
 discourage for beginners. For more details on how the multi-group inference works,
 read the [FAQ section](https://biofam.github.io/MOFA2/faq.html) and
-[check this vignette](https://raw.githack.com/bioFAM/MOFA2/master/MOFA2/vignettes/scRNA_gastrulation.html). 
+[check this vignette](https://htmlpreview.github.io/?https://github.com/bioFAM/MOFA2_tutorials/blob/master/R_tutorials/scRNA_gastrulation.html). 
 
 ```{r message=FALSE}
 N = ncol(data[[1]])
@@ -237,7 +237,7 @@ Saving model in `/var/folders/.../model.hdf5...`r outfile`.
 # Downstream analysis
 
 This finishes the tutorial on how to train a MOFA object from R. 
-To continue with the downstream analysis, follow [this tutorial](https://raw.githack.com/bioFAM/MOFA2_tutorials/master/R_tutorials/downstream_analysis.html)
+To continue with the downstream analysis, follow [this tutorial](https://htmlpreview.github.io/?https://github.com/bioFAM/MOFA2_tutorials/master/R_tutorials/downstream_analysis.html)
 
 <details>
   <summary>**Session Info**</summary>

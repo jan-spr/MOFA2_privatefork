@@ -1,0 +1,102 @@
+#' @title One-liner wrapper to create a MOFA2 object from multiple input objects and ready for training
+#' @name mofa2
+#' @description
+#' This is a one-line wrapper that combines the use of \code{\link{create_mofa}} followed by \code{\link{prepare_mofa}}.
+#' Please read the documentation of the corresponding functions for more details.
+#' @param data input data. See \code{\link{create_mofa}} for details on input data formats.
+#' @param assays Assays to include in MOFA model. Used for \code{\link[MultiAssayExperiment:MultiAssayExperiment]{MultiAssayExperiment}}, \code{\link[SingleCellExperiment:SingleCellExperiment]{SingleCellExperiment}} and \code{\link[SeuratObject:CreateSeuratObject]{Seurat}} objects.
+#' @param groups One of the variable names of sample metadata from which groups should be derived. Only relevant when using the multi-group framework with one of the three formats above. Default is \code{NULL}.
+#' @param covariates Continuous covariates to use for training with MEFISTO, see also \code{\link{set_covariates}}. Default is \code{NULL} (no covariates).
+#' @param extract_metadata Boolean specifying whether sample metadata from the input object should be propagated to the MOFA2 object  (default is \code{TRUE}).
+#' @param ... additional arguments; either data parameters as in \code{\link{create_mofa}}, or MOFA model parameters, named as the options of \code{\link{prepare_mofa}}.
+#' 
+#' @return 
+#' Returns an untrained \code{\link{MOFA}} with specified options
+#' filled in the corresponding slots
+#' @export
+#' 
+#' @examples
+
+#' # Example with MultiAssayExperiment
+#' library(mia)
+#' data("HintikkaXOData", package = "mia")
+#' mae <- HintikkaXOData
+#' mofa_obj <- mofa2(
+#'  mae, 
+#'  experiments = c(1,3),
+#'  assays = list("counts", "signals"), 
+#'  num_factors = 5
+#' )
+
+#' # Example with long data.frame format (two views and two groups)
+#' file <- system.file("extdata", "test_data.RData", package = "MOFA2")
+#' load(file) 
+#' mofa_obj <- mofa2(dt)
+
+#' # Example with list of matrices
+#' mtx <- make_example_data()$data
+#' mofa_obj <- mofa2(mtx)
+mofa2 <- function(data, assays = NULL, groups = NULL, covariates = NULL, extract_metadata = TRUE, ...) {
+  
+  # Select assays of each experiment for MOFA
+  mofa_obj <- create_mofa(data, assays = assays, groups = groups, extract_metadata = extract_metadata, ...)
+
+  # Set covariate for MEFISTO if passed
+  if (!is.null(covariates)) {
+    mofa_obj <- set_covariates(mofa_obj, covariates = covariates)
+  }
+
+  # Catch misspelled or unforwarded arguments
+  .check_dots(mofa_obj, ...)
+
+  # Make a list of arguments for MOFA
+  mofa_args <- list(
+    object = mofa_obj,
+    data_options = .set_opts(get_default_data_options(mofa_obj), ...),
+    model_options = .set_opts(get_default_model_options(mofa_obj), ...),
+    training_options = .set_opts(get_default_training_options(mofa_obj), ...),
+    mefisto_options = .set_opts(get_default_mefisto_options(mofa_obj), ...)
+  )
+  
+  # Add stochastic options if stochastic is turned on
+  if ( mofa_args[["training_options"]][["stochastic"]] ){
+    mofa_args[["stochastic_options"]] <- .set_opts(get_default_stochastic_options(mofa_obj), ...)
+  }
+  
+  # Prepare MOFA
+  mofa_obj <- do.call("prepare_mofa", mofa_args)
+  
+  return(mofa_obj)
+}
+
+###########################
+###### HELP FUNCTIONS #####
+###########################
+
+# Stop on ... names that neither create_mofa nor any option group will consume
+.check_dots <- function(object, ...) {
+  # names read out of `dots` by create_mofa's format-specific loaders
+  data_args <- c("experiments", "alt_experiments", "layer", "features")
+  # every option name across the five option groups
+  option_args <- unique(c(
+    names(get_default_data_options(object)),
+    names(get_default_model_options(object)),
+    names(get_default_training_options(object)),
+    names(get_default_stochastic_options(object)),
+    names(get_default_mefisto_options(object))
+  ))
+  unknown <- setdiff(names(list(...)), c(data_args, option_args))
+  if (length(unknown) > 0)
+    stop("Unrecognised argument(s) passed to mofa2(): ", paste(unknown, collapse = ", "), call. = FALSE)
+}
+
+# Combine custom options found in ... with default options
+.set_opts <- function(default, ...) {
+  # extract list of specified options
+  user_options <- list(...)
+  # Intersection of user_options that belong to (current) default parameters (e.g. data, model, train, ...)
+  set_options <- intersect(names(default), names(user_options))
+  # Overwrite defaults with values specified in arguments
+  default[set_options] <- user_options[set_options]
+  return(default)
+}

@@ -6,12 +6,24 @@
 \usage{
 create_mofa_from_MultiAssayExperiment(
   mae,
+  experiments = NULL,
+  alt_experiments = NULL,
+  assays = NULL,
   groups = NULL,
   extract_metadata = FALSE
 )
 }
 \arguments{
-\item{mae}{a MultiAssayExperiment object}
+\item{mae}{a \code{\link[MultiAssayExperiment:MultiAssayExperiment]{MultiAssayExperiment}} object}
+
+\item{experiments}{optional list, experiments of the MAE object to load, by indices or names.
+Default is \code{NULL} (all Experiments).}
+
+\item{alt_experiments}{optional list, altExp to use for each experiment (when applicable, see also \code{\link{create_mofa_from_SingleCellExperiment}}).
+Default is \code{NULL} (no altExp's).}
+
+\item{assays}{optional list, assays to use for each experiment of the \code{\link[MultiAssayExperiment:MultiAssayExperiment]{MultiAssayExperiment}} object.
+Default is \code{NULL} (using first slots).}
 
 \item{groups}{a string specifying column name of the colData to use it as a group variable. 
 Alternatively, a character vector with group assignment for every sample.
@@ -23,5 +35,24 @@ Default is \code{NULL} (no group structure).}
 Returns an untrained \code{\link{MOFA}} object
 }
 \description{
-Method to create a \code{\link{MOFA}} object from a MultiAssayExperiment object
+Method to create a \code{\link{MOFA}} object from a \code{\link[MultiAssayExperiment:MultiAssayExperiment]{MultiAssayExperiment}} object.
+Loads the listed experiments as different views, optionally for each experiment the \code{assay} and/or \code{altExp} slot to load can be specified.
+}
+\examples{
+\dontshow{if (requireNamespace("MultiAssayExperiment", quietly = TRUE)) withAutoprint(\{ # examplesIf}
+# Using the miniACC data transform RNASeq assays and select three experiments for MOFA
+library(MultiAssayExperiment)
+data(miniACC)
+# apply log1p to the RNASeq and miRNAseq counts
+for (nm in c("RNASeq2GeneNorm", "miRNASeqGene")) {
+  assay(miniACC[[nm]], "log1p") <-
+    log1p(assay(miniACC[[nm]], "exprs"))
+}
+# create model with the transformed assay, omitting the 2nd and 4th experiments
+model <- create_mofa_from_MultiAssayExperiment(
+                    miniACC,
+                    experiments = c("RNASeq2GeneNorm","RPPAArray","miRNASeqGene"),
+                    assays = c("log1p", "exprs", 'log1p'),
+                    extract_metadata = TRUE)
+\dontshow{\}) # examplesIf}
 }
