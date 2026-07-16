@@ -230,7 +230,7 @@ jobs:
         shell: Rscript {0}
 
       - name: Install covr
-        if: github.ref == 'refs/heads/devel' && env.run_covr == 'true' && runner.os == 'Linux'
+        if: github.ref == 'refs/heads/r-check-workflow' && env.run_covr == 'true' && runner.os == 'Linux'
         run: |
           remotes::install_cran("covr")
         shell: Rscript {0}
@@ -286,7 +286,7 @@ jobs:
         shell: Rscript {0}
 
       - name: Test coverage
-        if: github.ref == 'refs/heads/devel' && env.run_covr == 'true' && runner.os == 'Linux'
+        if: github.ref == 'refs/heads/r-check-workflow' && env.run_covr == 'true' && runner.os == 'Linux'
         run: |
           covr::codecov(coverage = covr::package_coverage(type = "all"))
         shell: Rscript {0}
