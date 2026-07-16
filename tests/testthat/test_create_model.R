@@ -1,4 +1,3 @@
-context("Creating the model from different objects")
 library(MOFA2)
 
 test_that("a model can be created from a list of matrices", {
@@ -90,11 +89,14 @@ test_that("a model can be created from a MultiAssayExperiment Object", {
 		c("RNASeq2GeneNorm", "RPPAArray", "miRNASeqGene")
 	)
 
-	# right data matrix
-	expect_equivalent(
-		get_data(model, views = c("RPPAArray"))$RPPAArray$group1,
-		assay(mae_sub[["RPPAArray"]])
-	)
+
+    # right data matrix (colnames differ: the sampleMap maps assay barcodes
+    # to primary sample names)
+    expect_equal(
+        get_data(model, views = c("RPPAArray"))$RPPAArray$group1,
+        assay(mae_sub[["RPPAArray"]]),
+        ignore_attr = TRUE
+    )
 
 	# extract_metadata should propagate colData onto the MOFA object
 	meta <- samples_metadata(model)
@@ -191,30 +193,31 @@ test_that("a model can be created from a SingleCellExperiment Object", {
 	expect_equal(meta$IGHV_filled, cd[meta$sample, "IGHV_filled"])
 	expect_equal(meta$age, cd[meta$sample, "age"])
 
-	# right data matrix - with groups
-	expect_equivalent(
-		get_data(MOFAobject, views = c("Main"),groups = c("0"))$Main$`0`,
-		CLL_data$mRNA[,CLL_metadata$IGHV==0 & !is.na(CLL_metadata$IGHV)]
-	) 
-	expect_equivalent(
-		get_data(MOFAobject, views = c("Main"),groups = c("1"))$Main$`1`,
-		CLL_data$mRNA[,CLL_metadata$IGHV==1 & !is.na(CLL_metadata$IGHV)]
-	)
+	
+    # right data matrix - with groups
+    expect_equal(
+        get_data(MOFAobject, views = c("Main"), groups = c("0"))$Main$`0`,
+        CLL_data$mRNA[, CLL_metadata$IGHV == 0 & !is.na(CLL_metadata$IGHV)]
+    )
+    expect_equal(
+        get_data(MOFAobject, views = c("Main"), groups = c("1"))$Main$`1`,
+        CLL_data$mRNA[, CLL_metadata$IGHV == 1 & !is.na(CLL_metadata$IGHV)]
+    )
 
-	#check dimensions
-	expect_equal(get_dimensions(MOFAobject)$G,3) # right number of groups
+    # check dimensions
+    expect_equal(get_dimensions(MOFAobject)$G, 3) # right number of groups
 
-	# right data matrix - without groups
-	# create MOFA model
-	MOFAobject <- create_mofa_from_SingleCellExperiment(
-		sce,
-		alt_experiments = c("Main","Drugs", "Methylation", "Mutations"),
-		assays = c("mRNA","expr","expr","expr")
-	)
-    expect_equivalent(
-		get_data(MOFAobject, views = c("Main"))$Main$group1,
-		CLL_data$mRNA
-	)
+    # right data matrix - without groups
+    # create MOFA model
+    MOFAobject <- create_mofa_from_SingleCellExperiment(
+        sce,
+        alt_experiments = c("Main", "Drugs", "Methylation", "Mutations"),
+        assays = c("mRNA", "expr", "expr", "expr")
+    )
+    expect_equal(
+        get_data(MOFAobject, views = c("Main"))$Main$group1,
+        CLL_data$mRNA
+    )
 })
 
 test_that("MAE experiments can be selected by numeric index", {
@@ -239,13 +242,14 @@ test_that("MAE experiments can be selected by numeric index", {
 		c("RNASeq2GeneNorm", "RPPAArray", "miRNASeqGene")
 	)
 
-	# selecting by index and by name should give the same object
-	model_by_name <- create_mofa(
-		mae_sub,
-		experiments = c("RNASeq2GeneNorm", "RPPAArray", "miRNASeqGene"),
-		assays = list("log1p", "exprs", "log1p")
-	)
-	expect_equivalent(get_data(model), get_data(model_by_name))
+
+    # selecting by index and by name should give the same object
+    model_by_name <- create_mofa(
+        mae_sub,
+        experiments = c("RNASeq2GeneNorm", "RPPAArray", "miRNASeqGene"),
+        assays = list("log1p", "exprs", "log1p")
+    )
+    expect_equal(get_data(model), get_data(model_by_name))
 })
 
 test_that("SCE alt_experiments can be selected by numeric index", {
@@ -276,13 +280,13 @@ test_that("SCE alt_experiments can be selected by numeric index", {
 	# numeric index should resolve to the altExp name
 	expect_equal(views_names(model), c("Main", "alt_data"))
 
-	# index and name should select the same altExp data
-	model_by_name <- create_mofa_from_SingleCellExperiment(
-		sce,
-		alt_experiments = c("main", "alt_data"),
-		assays = c("counts", "counts")
-	)
-	expect_equivalent(get_data(model), get_data(model_by_name))
+    # index and name should select the same altExp data
+    model_by_name <- create_mofa_from_SingleCellExperiment(
+        sce,
+        alt_experiments = c("main", "alt_data"),
+        assays = c("counts", "counts")
+    )
+    expect_equal(get_data(model), get_data(model_by_name))
 })
 
 test_that("create_mofa() dispatches to the SingleCellExperiment constructor", {
@@ -309,7 +313,7 @@ test_that("create_mofa() dispatches to the SingleCellExperiment constructor", {
     expect_s4_class(model, "MOFA")
     expect_equal(get_dimensions(model)$M, 1)
     expect_equal(views_names(model), "logcounts")
-    expect_equivalent(get_data(model)$logcounts$group1, logc)
+    expect_equal(get_data(model)$logcounts$group1, logc)
 
     # The dispatcher forwards alt_experiments / assays (via ...) to the constructor
     model2 <- create_mofa(

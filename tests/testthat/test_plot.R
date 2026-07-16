@@ -1,4 +1,3 @@
-context("Making plots")
 library(MOFA2)
 
 filepath <- system.file("extdata", "model.hdf5", package = "MOFA2")
