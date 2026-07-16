@@ -18,12 +18,11 @@ knitr::opts_chunk$set(
 <!-- badges: start -->
 [![Bioc release status](http://www.bioconductor.org/shields/build/release/bioc/MOFA2.svg)](https://bioconductor.org/checkResults/release/bioc-LATEST/MOFA2)
 [![Bioc devel status](http://www.bioconductor.org/shields/build/devel/bioc/MOFA2.svg)](https://bioconductor.org/checkResults/devel/bioc-LATEST/MOFA2)
-[![Bioc downloads rank](https://bioconductor.org/shields/downloads/release/MOFA2.svg)](http://bioconductor.org/packages/stats/bioc/MOFA2/)
 [![Bioc history](https://bioconductor.org/shields/years-in-bioc/MOFA2.svg)](https://bioconductor.org/packages/release/bioc/html/MOFA2.html#since)
 [![Bioc last commit](https://bioconductor.org/shields/lastcommit/devel/bioc/MOFA2.svg)](http://bioconductor.org/checkResults/devel/bioc-LATEST/MOFA2/)
+[![Bioc downloads rank](https://bioconductor.org/shields/downloads/release/MOFA2.svg)](http://bioconductor.org/packages/stats/bioc/MOFA2/)
 [![Bioc dependencies](https://bioconductor.org/shields/dependencies/release/MOFA2.svg)](https://bioconductor.org/packages/release/bioc/html/MOFA2.html#since)
 [![check-bioc](https://github.com/jan-spr/MOFA2_privatefork/actions/workflows/check-bioc.yml/badge.svg)](https://github.com/jan-spr/MOFA2_privatefork/actions/workflows/check-bioc.yml)
-[![Lifecycle: stable](https://img.shields.io/badge/lifecycle-stable-brightgreen.svg)](https://lifecycle.r-lib.org/articles/stages.html#stable)
 <!-- badges: end -->
 
 

@@ -6,7 +6,7 @@
 # )
 
 .mofapy2_dependencies <- c(
-    "python=3.12.12",
+    "python=3.12.10",
     "numpy=1.26.4",
     "scipy=1.12.0",
     "pandas=2.2.1",
