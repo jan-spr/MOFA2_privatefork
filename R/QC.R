@@ -120,7 +120,7 @@
         ))) )
         intercept_factors <- which(rowSums(r>0.75)>0)
         if (length(intercept_factors)) {
-            warning(sprintf("Factor(s) %s are strongly correlated with the average expression of features for at least one of your omics. Such factors appear when there are differences in the total 'levels' between your samples, *sometimes* because of poor normalisation in the preprocessing steps.\n",paste(intercept_factors,collapse=", ")))
+            warning(sprintf("Factor(s) %s are strongly correlated with the average values of features for at least one of your omics.\nSuch factors appear when there are differences in the total 'levels' between your samples, *sometimes* because of poor normalisation in the preprocessing steps. See 'plot_factor_intercept()' for a detailed breakdown.",paste(intercept_factors,collapse=", ")))
         }
       }
     }
@@ -128,11 +128,9 @@
     # Check for correlated factors
     if (verbose == TRUE) message("Checking for highly correlated factors...")
     Z <- do.call("rbind",get_factors(object))
-    op <- options(warn=-1) # suppress warnings
-    
     noise <- matrix(rnorm(n=length(Z), mean=0, sd=1e-10), nrow(Z), ncol(Z))
-    tmp <- cor(Z+noise); diag(tmp) <- NA
-    options(op) # activate warnings again
+    # suppress warnings locally instead of toggling globally
+    tmp <- suppressWarnings(cor(Z+noise)); diag(tmp) <- NA
     if (max(tmp,na.rm=TRUE)>0.5) {
       warning("The model contains highly correlated factors (see `plot_factor_cor(MOFAobject)`). \nWe recommend that you train the model with less factors and that you let it train for a longer time.\n")
     }
@@ -140,4 +138,59 @@
   }
   
   return(object)  
+}
+
+#' @title Heatmap of factor correlation with mean feature values
+#' @name plot_factor_intercept
+#' @description
+#' Diagnostic plot for detecting \emph{intercept factors}, that
+#' capture ovearally shift in the signal rather than
+#' biological structure. The absolute Pearson correlation
+#' between every factor and the per-sample mean feature values is computed
+#' and displayed as a heatmap.
+#' Factors above a correlation of 0.75 in at least one view are highlighted
+#' (red outline, bold value), as these often reflect differences in the total
+#' 'levels' between samples, sometimes caused by incomplete normalisation during
+#' preprocessing.
+#' @param object a trained \code{\linkS4class{MOFA}} object.
+#' @details
+#' Correlations are computed with \code{use = "pairwise.complete.obs"} to
+#' tolerate missing values.
+#' @return
+#' A \code{\link[ggplot2]{ggplot}} object: a heatmap of factors (rows) by views
+#' (columns). If the training data are not loaded
+#' (\code{object@data_options$loaded} is \code{FALSE}) the function returns
+#' \code{NULL} invisibly, as the plot cannot be computed.
+#' @seealso \code{\link{run_mofa}}, \code{\link{load_model}}
+#' @examples
+#' \dontrun{
+#' model <- load_model("model.hdf5", load_data = TRUE)
+#' plot_factor_intercept(model)
+#' }
+#' @export
+plot_factor_intercept <- function(object) {
+  # sanity checks
+  stopifnot(object@data_options[["loaded"]])
+  if (is.null(object@data)) {stop("Data is Null")}
+  
+  # Compute for intercept factors
+  factors <- do.call("rbind", get_factors(object))
+  r <- suppressWarnings(t(do.call("rbind", lapply(object@data, function(x) {
+    abs(cor(colMeans(do.call("cbind", x), na.rm = TRUE), factors, use = "pairwise.complete.obs"))
+  }))))
+  dimnames(r) <- list(factor = factors_names(object), view = views_names(object))
+  # Heatmap
+  df <- as.data.frame.table(r, responseName = "correlation")
+  df$flag <- !is.na(df$correlation) & df$correlation > 0.75
+  ggplot(df, aes(view, factor, fill = correlation)) +
+    geom_tile(color = "grey90") +
+    geom_tile(data = subset(df, flag), fill = NA, color = "red", linewidth = 1) +
+    geom_text(aes(label = ifelse(is.na(correlation), "", sprintf("%.2f", correlation)),
+                  fontface = ifelse(flag, "bold", "plain")), size = 3) +
+    scale_fill_gradient(name = "|cor|", low = "white", high = "steelblue",
+                        limits = c(0, 1), na.value = "grey95") +
+    scale_y_discrete(limits = levels(df$factor)) +
+    labs(x = NULL, y = NULL,
+          title = "Factor correlation with mean feature values") +
+    theme_minimal()
 }
