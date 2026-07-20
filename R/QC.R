@@ -120,7 +120,7 @@
         ))) )
         intercept_factors <- which(rowSums(r>0.75)>0)
         if (length(intercept_factors)) {
-            warning(sprintf("Factor(s) %s are strongly correlated with the average values of features for at least one of your omics.\nSuch factors appear when there are differences in the total 'levels' between your samples, *sometimes* because of poor normalisation in the preprocessing steps. See 'plot_factor_intercept()' for a detailed breakdown.",paste(intercept_factors,collapse=", ")))
+            warning(sprintf("Factor(s) %s are strongly correlated with the per-sample averages for at least one of your omics (See 'plot_factor_mean_cor()' for more detail).\nSuch factors appear when there are differences in the total 'levels' between your samples, *sometimes* because of poor normalisation in the preprocessing steps.",paste(intercept_factors,collapse=", ")))
         }
       }
     }
@@ -141,56 +141,107 @@
 }
 
 #' @title Heatmap of factor correlation with mean feature values
-#' @name plot_factor_intercept
+#' @name plot_factor_mean_cor
 #' @description
 #' Diagnostic plot for detecting \emph{intercept factors}, that
-#' capture ovearally shift in the signal rather than
+#' capture an overall shift in the signal rather than
 #' biological structure. The absolute Pearson correlation
 #' between every factor and the per-sample mean feature values is computed
 #' and displayed as a heatmap.
 #' Factors above a correlation of 0.75 in at least one view are highlighted
-#' (red outline, bold value), as these often reflect differences in the total
+#' (red outline), as these often reflect differences in the total
 #' 'levels' between samples, sometimes caused by incomplete normalisation during
 #' preprocessing.
 #' @param object a trained \code{\linkS4class{MOFA}} object.
+#' @param split_by_groups logical. If \code{FALSE} (default), groups are pooled
+#'   into a single heatmap; if \code{TRUE}, one panel per group.
 #' @details
 #' Correlations are computed with \code{use = "pairwise.complete.obs"} to
-#' tolerate missing values.
+#' tolerate missing values. Pooled and per group scores are computed differently -
+#' across all samples at once or split within each group.
 #' @return
 #' A \code{\link[ggplot2]{ggplot}} object: a heatmap of factors (rows) by views
-#' (columns). If the training data are not loaded
-#' (\code{object@data_options$loaded} is \code{FALSE}) the function returns
-#' \code{NULL} invisibly, as the plot cannot be computed.
+#' (columns), faceted by group when \code{split_by_groups = TRUE}.
 #' @seealso \code{\link{run_mofa}}, \code{\link{load_model}}
 #' @examples
-#' \dontrun{
-#' model <- load_model("model.hdf5", load_data = TRUE)
-#' plot_factor_intercept(model)
-#' }
+#' # Using an existing trained model on simulated data
+#' file <- system.file("extdata", "model.hdf5", package = "MOFA2")
+#' model <- load_model(file)
+#'
+#' # Correlation of each factor with the mean feature values per view
+#' plot_factor_mean_cor(model)
+#'
+#' # Same, but computed within each group and shown as one panel per group
+#' plot_factor_mean_cor(model, split_by_groups = TRUE)
 #' @export
-plot_factor_intercept <- function(object) {
+plot_factor_mean_cor <- function(object, split_by_groups = FALSE) {
   # sanity checks
-  stopifnot(object@data_options[["loaded"]])
-  if (is.null(object@data)) {stop("Data is Null")}
+  if (!object@data_options[["loaded"]]) {
+    stop("No training data loaded in this object. This can be fixed by reloading with:
+      load_model(file, load_data = TRUE)")
+  }
+  if (is.null(object@data)) {
+    stop("The 'data' slot is empty, so correlations with the mean feature values
+    cannot be computed.")
+  }
+
+  .mean_cor <- function(data_by_view, factors) {
+    r <- suppressWarnings(
+      do.call("rbind", lapply(data_by_view, function(x) {
+        sample_means <- colMeans(x, na.rm = TRUE)
+        abs(cor(sample_means, factors, use = "pairwise.complete.obs"))
+      }
+    )))
+    return(t(r))
+  }
+  .label_dims <- function(r) {
+    dimnames(r) <- list(factor = factors_names(object), view = views_names(object))
+    return(r)
+  }
   
   # Compute for intercept factors
-  factors <- do.call("rbind", get_factors(object))
-  r <- suppressWarnings(t(do.call("rbind", lapply(object@data, function(x) {
-    abs(cor(colMeans(do.call("cbind", x), na.rm = TRUE), factors, use = "pairwise.complete.obs"))
-  }))))
-  dimnames(r) <- list(factor = factors_names(object), view = views_names(object))
-  # Heatmap
-  df <- as.data.frame.table(r, responseName = "correlation")
+  Z <- get_factors(object)
+  if (split_by_groups) {
+    # one correlation matrix per group, melted and stacked with a `group` column
+    df <- do.call("rbind", lapply(groups_names(object), function(g) {
+      data_g <- lapply(object@data, function(x) x[[g]])  # this group's matrix per view
+      r <- .label_dims(.mean_cor(data_g, Z[[g]]))
+      cbind(
+        as.data.frame.table(r, responseName = "correlation"),
+        group = g
+      )
+    }))
+    df$group <- factor(df$group, levels = groups_names(object))
+  } else {
+    # all groups concatenated (samples pooled across groups)
+    Z_comb <- do.call("rbind", Z)
+    data_comb <- lapply(object@data, function(x) do.call("cbind", x))
+    r <- .label_dims(.mean_cor(data_comb,Z_comb))
+    df <- as.data.frame.table(r, responseName = "correlation")
+  }
+  
+  # factors flagged in at least one view (in any group) get a bold axis label.
   df$flag <- !is.na(df$correlation) & df$correlation > 0.75
-  ggplot(df, aes(view, factor, fill = correlation)) +
+  factor_levels <- levels(df$factor)
+  is_flagged <- factor_levels %in% unique(as.character(df$factor[df$flag]))
+  axis_labels <- Map(
+    function(nm, flagged) if (flagged) bquote(bold(.(nm))) else bquote(plain(.(nm))),
+    factor_levels, is_flagged
+  )
+
+  # Heatmap
+  p <- ggplot(df, aes(view, factor, fill = correlation)) +
     geom_tile(color = "grey90") +
     geom_tile(data = subset(df, flag), fill = NA, color = "red", linewidth = 1) +
     geom_text(aes(label = ifelse(is.na(correlation), "", sprintf("%.2f", correlation)),
                   fontface = ifelse(flag, "bold", "plain")), size = 3) +
     scale_fill_gradient(name = "|cor|", low = "white", high = "steelblue",
                         limits = c(0, 1), na.value = "grey95") +
-    scale_y_discrete(limits = levels(df$factor)) +
+    scale_y_discrete(limits = factor_levels, labels = axis_labels) +
     labs(x = NULL, y = NULL,
-          title = "Factor correlation with mean feature values") +
+          title = "Factor correlation with per-sample mean") +
     theme_minimal()
+
+  if (split_by_groups) p <- p + facet_wrap(~group, nrow = 1)
+  p
 }
