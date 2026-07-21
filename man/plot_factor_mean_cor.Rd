@@ -17,17 +17,19 @@ A \code{\link[ggplot2]{ggplot}} object: a heatmap of factors (rows) by views
 (columns), faceted by group when \code{split_by_groups = TRUE}.
 }
 \description{
-Diagnostic plot for detecting \emph{intercept factors}, that
-capture an overall shift in the signal rather than
-biological structure. The absolute Pearson correlation
-between every factor and the per-sample mean feature values is computed
-and displayed as a heatmap.
-Factors above a correlation of 0.75 in at least one view are highlighted
-(red outline), as these often reflect differences in the total
-'levels' between samples, sometimes caused by incomplete normalisation during
-preprocessing.
+Plots (absolute) Pearson correlation between every factor and the per-sample mean feature
+values, with correlations above 0.75 highlighted (red outline).
 }
 \details{
+Highlighted factors often capture differences in the total 'levels' between
+samples. Depending on the modality in question, this could be valid biological structure,
+or a normalisation artifact of the data, e.g. from incomplete preprocessing.
+
+To decide whether these factors are of interest, it may help to take a closer look
+at what signal the highlighted view-factor combinations capture -
+ e.g. with \code{\link{plot_factor}}, \code{\link{plot_top_weights}}
+or \code{\link{plot_factors_vs_cov}} (in the case with covariates).
+
 Correlations are computed with \code{use = "pairwise.complete.obs"} to
 tolerate missing values. Pooled and per group scores are computed differently -
 across all samples at once or split within each group.
@@ -44,5 +46,7 @@ plot_factor_mean_cor(model)
 plot_factor_mean_cor(model, split_by_groups = TRUE)
 }
 \seealso{
-\code{\link{run_mofa}}, \code{\link{load_model}}
+\code{\link{plot_factor}}, \code{\link{plot_weights}},
+  \code{\link{plot_top_weights}}, \code{\link{plot_factors_vs_cov}},
+  \code{\link{plot_variance_explained}}, \code{\link{load_model}}
 }
