@@ -105,7 +105,7 @@ jobs:
       ## https://github.com/r-lib/actions/blob/master/examples/check-standard.yaml
       ## If they update their steps, we will also need to update ours.
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
 
       ## R is already included in the Bioconductor docker images
       - name: Setup R from r-lib
@@ -134,8 +134,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.R_LIBS_USER }}
-          key: ${{ matrix.config.os }}-${{ matrix.config.r }}-${{ matrix.config.bioc }}-${{ inputs.cache-version }}
-          restore-keys: ${{ matrix.config.os }}-${{ matrix.config.r }}-${{ matrix.config.bioc }}--${{ inputs.cache-version }}
+          key: ${{ matrix.config.os }}-${{ matrix.config.r }}-${{ matrix.config.bioc }}-${{ env.cache-version }}-${{ hashFiles('DESCRIPTION') }}
+          restore-keys: ${{ matrix.config.os }}-${{ matrix.config.r }}-${{ matrix.config.bioc }}-${{ env.cache-version }}-
 
       ## remotes is needed for isntalling the Linux system dependencies
       ## as well as other R packages later on.
@@ -258,7 +258,7 @@ jobs:
 
       - name: Upload check results
         if: failure()
-        uses: actions/upload-artifact@master
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ runner.os }}-${{ matrix.config.r }}-${{ matrix.config.bioc }}-results
           path: check
