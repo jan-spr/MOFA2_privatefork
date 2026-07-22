@@ -13,7 +13,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-# MOFA2
+# Multi-Omics Factor Analysis
 
 <!-- badges: start -->
 [![Bioc release status](http://www.bioconductor.org/shields/build/release/bioc/MOFA2.svg)](https://bioconductor.org/checkResults/release/bioc-LATEST/MOFA2)
@@ -26,10 +26,8 @@ knitr::opts_chunk$set(
 <!-- badges: end -->
 
 
-
-
-# Multi-Omics Factor Analysis
-
 MOFA is a factor analysis model that provides a general framework for the integration of multi-omic data sets in an unsupervised fashion.  
 
 Please [visit our website](https://biofam.github.io/MOFA2/) for installation instructions, tutorials, and much more!
+
+For the code of the python implementation of MOFA2 see the [mofapy2](../mofapy2) repository.

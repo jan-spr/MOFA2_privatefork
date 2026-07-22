@@ -1,7 +1,7 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-# MOFA2
+# Multi-Omics Factor Analysis
 
 <!-- badges: start -->
 
@@ -20,10 +20,11 @@ dependencies](https://bioconductor.org/shields/dependencies/release/MOFA2.svg)](
 [![check-bioc](https://github.com/jan-spr/MOFA2_privatefork/actions/workflows/check-bioc.yml/badge.svg)](https://github.com/jan-spr/MOFA2_privatefork/actions/workflows/check-bioc.yml)
 <!-- badges: end -->
 
-# Multi-Omics Factor Analysis
-
 MOFA is a factor analysis model that provides a general framework for
 the integration of multi-omic data sets in an unsupervised fashion.
 
 Please [visit our website](https://biofam.github.io/MOFA2/) for
 installation instructions, tutorials, and much more!
+
+For the code of the python implementation of MOFA2 see the
+[mofapy2](../mofapy2) repository.
