@@ -14,9 +14,8 @@ run_mofa(object, outfile = NULL, save_data = TRUE, use_basilisk = FALSE)
 \item{save_data}{logical indicating whether to save the training data in the hdf5 file. 
 This is useful for some downstream analysis (mainly functions with the prefix \code{plot_data}), but it can take a lot of disk space.}
 
-\item{use_basilisk}{use \code{basilisk} to automatically install a conda environment with mofapy2 and all dependencies? 
-If \code{FALSE} (default), you should specify the right python binary when loading R with \code{reticulate::use_python(..., force=TRUE)}
-or the right conda environment with \code{reticulate::use_condaenv(..., force=TRUE)}.}
+\item{use_basilisk}{use \code{basilisk} to automatically provision a Python environment with mofapy2 and all dependencies. 
+If \code{FALSE} (default), python will be used through \code{reticulate} - this needs to be set up e.g. via \code{\link[reticulate]{py_require}} or \code{\link[reticulate]{use_python}}.}
 }
 \value{
 a trained \code{\link{MOFA}} object
@@ -27,10 +26,12 @@ Function to train an untrained \code{\link{MOFA}} object.
 \details{
 This function is called once a MOFA object has been prepared (using \code{\link{prepare_mofa}})
 In this step the R package calls the \code{mofapy2} Python package, where model training is performed. \cr
+
 The interface with Python is done with the \code{\link{reticulate}} package. 
-If you have several versions of Python installed and R is not detecting the correct one, 
-you can change it using \code{reticulate::use_python} when loading the R session. 
-Alternatively, you can let us install mofapy2 for you using \code{basilisk} if you set use_basilisk to \code{TRUE}
+The simplest option is \code{\link[reticulate]{py_require}} (e.g. \code{reticulate::py_require("mofapy2", python_version = "3.12")}) 
+which prepares an isolated python environment with \code{mofapy2};
+to use an existing python installation/environment instead, point reticulate at it with \code{\link[reticulate]{use_python}}. 
+Alternatively, set \code{use_basilisk = TRUE} to let us install mofapy2 for you in a dedicated Python environment via \code{basilisk} (not recommended on Windows).
 }
 \examples{
 # Load data (in data.frame format)
@@ -43,6 +44,12 @@ MOFAmodel <- create_mofa(dt)
 # Prepare the MOFA object with default options
 MOFAmodel <- prepare_mofa(MOFAmodel)
 
-# Run the MOFA model
+# A. Run the MOFA model via reticulate
+\dontrun{ 
+reticulate::py_require("mofapy2", python_version = "3.12")
+MOFAmodel <- run_mofa(MOFAmodel)
+}
+
+# B. Run the MOFA model using basilisk
 \dontrun{ MOFAmodel <- run_mofa(MOFAmodel, use_basilisk = TRUE) }
 }
