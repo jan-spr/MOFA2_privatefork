@@ -15,6 +15,11 @@
     "dtw-python=1.3.1"
 )
 
+# Pinned version of mofapy2: defines the basilisk env and is what run_mofa() checks the reticulate install against.
+# If changed these hardcoded copies may need to be matched:
+#   - run_mofa() roxygen @details and @examples
+#   - vignettes/getting_started_R.Rmd, vignettes/MEFISTO_temporal.Rmd
+#   - gh-pages - currently not pinned: installation.md, troubleshooting.md, gpu_training.md
 .mofapy2_version <- "0.7.3"
 
 #' @importFrom basilisk BasiliskEnvironment

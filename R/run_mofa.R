@@ -7,17 +7,18 @@
 #' @description Function to train an untrained \code{\link{MOFA}} object.
 #' @details This function is called once a MOFA object has been prepared (using \code{\link{prepare_mofa}})
 #' In this step the R package calls the \code{mofapy2} Python package, where model training is performed. \cr
+#' 
 #' The interface with Python is done with the \code{\link{reticulate}} package. 
-#' If you have several versions of Python installed and R is not detecting the correct one, 
-#' you can change it using \code{reticulate::use_python} when loading the R session. 
-#' Alternatively, you can let us install mofapy2 for you using \code{basilisk} if you set use_basilisk to \code{TRUE}
+#' The simplest option is \code{\link[reticulate]{py_require}} (e.g. \code{reticulate::py_require("mofapy2==0.7.3", python_version = "3.12")})
+#' which prepares an isolated python environment with \code{mofapy2};
+#' to use an existing python installation/environment instead, point reticulate at it with \code{\link[reticulate]{use_python}}. 
+#' Alternatively, set \code{use_basilisk = TRUE} to let us install mofapy2 for you in a dedicated Python environment via \code{basilisk} (not recommended on Windows).
 #' @param object an untrained \code{\link{MOFA}} object
 #' @param save_data logical indicating whether to save the training data in the hdf5 file. 
-#'  This is useful for some downstream analysis (mainly functions with the prefix \code{plot_data}), but it can take a lot of disk space.
+#' This is useful for some downstream analysis (mainly functions with the prefix \code{plot_data}), but it can take a lot of disk space.
 #' @param outfile output file for the model (.hdf5 format). If \code{NULL}, a temporary file is created.
-#' @param use_basilisk use \code{basilisk} to automatically install a conda environment with mofapy2 and all dependencies? 
-#' If \code{FALSE} (default), you should specify the right python binary when loading R with \code{reticulate::use_python(..., force=TRUE)}
-#' or the right conda environment with \code{reticulate::use_condaenv(..., force=TRUE)}.
+#' @param use_basilisk use \code{basilisk} to automatically provision a Python environment with mofapy2 and all dependencies. 
+#' If \code{FALSE} (default), python will be used through \code{reticulate} - this needs to be set up e.g. via \code{\link[reticulate]{py_require}} or \code{\link[reticulate]{use_python}}.
 #' @return a trained \code{\link{MOFA}} object
 #' @import reticulate
 #' @import basilisk
@@ -33,8 +34,14 @@
 #' # Prepare the MOFA object with default options
 #' MOFAmodel <- prepare_mofa(MOFAmodel)
 #' 
-#' # Run the MOFA model
-#' \dontrun{ MOFAmodel <- run_mofa(MOFAmodel, use_basilisk = TRUE) }
+#' # A. Run the MOFA model via reticulate
+#' \dontrun{ 
+#' reticulate::py_require("mofapy2==0.7.3", python_version = "3.12")
+#' MOFAmodel <- run_mofa(MOFAmodel)}
+#' 
+#' # B. Run the MOFA model using basilisk
+#' \dontrun{
+#' MOFAmodel <- run_mofa(MOFAmodel, use_basilisk = TRUE) }
 run_mofa <- function(object, outfile = NULL, save_data = TRUE, use_basilisk = FALSE) {
   
   # Sanity checks
@@ -60,9 +67,9 @@ run_mofa <- function(object, outfile = NULL, save_data = TRUE, use_basilisk = FA
   # Connect to mofapy2 using reticulate (default)
   if (!use_basilisk) {
 
-    message("Connecting to the mofapy2 python package using reticulate (use_basilisk = FALSE)... 
-    Please make sure to manually specify the right python binary when loading R with reticulate::use_python(..., force=TRUE) or the right conda environment with reticulate::use_condaenv(..., force=TRUE)
-    If you prefer to let us automatically install a conda environment with 'mofapy2' installed using the 'basilisk' package, please use the argument 'use_basilisk = TRUE'\n")
+    message(sprintf("Connecting to the mofapy2 python package using reticulate (use_basilisk = FALSE)... 
+    Please make sure mofapy2 is available to reticulate, e.g. by declaring it with reticulate::py_require('mofapy2==%s') or by selecting an existing installation with reticulate::use_python('/path/to/python', required = TRUE).
+    If you prefer to let us automatically install a Python environment with 'mofapy2' installed using the 'basilisk' package, please use the argument 'use_basilisk = TRUE'\n", .mofapy2_version))
     
     # Sanity checks
     have_mofa2 <- py_module_available("mofapy2")
