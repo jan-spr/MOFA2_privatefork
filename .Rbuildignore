@@ -3,3 +3,5 @@
 mofapy2
 Dockerfile
 setup.py
+^dev$
+^\.github$
