@@ -5,5 +5,3 @@ Dockerfile
 setup.py
 ^dev$
 ^\.github$
-^codecov\.yml$
-^README\.Rmd$
