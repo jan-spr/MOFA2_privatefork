@@ -1,0 +1,283 @@
+## Read more about GitHub actions the features of this GitHub Actions workflow
+## at https://lcolladotor.github.io/biocthis/articles/biocthis.html#use_bioc_github_action
+##
+## For more details, check the biocthis developer notes vignette at
+## https://lcolladotor.github.io/biocthis/articles/biocthis_dev_notes.html
+##
+## You can add this workflow to other packages using:
+## > biocthis::use_bioc_github_action()
+##
+## Using GitHub Actions exposes you to many details about how R packages are
+## compiled and installed in several operating system.s
+### If you need help, please follow the steps listed at
+## https://github.com/r-lib/actions#where-to-find-help
+##
+## If you found an issue specific to biocthis's GHA workflow, please report it
+## with the information that will make it easier for others to help you.
+## Thank you!
+
+## Acronyms:
+## * GHA: GitHub Action
+## * OS: operating system
+
+on:
+  push:
+  pull_request:
+
+name: R-CMD-check-bioc
+
+## These environment variables control whether to run GHA code later on that is
+## specific to testthat.
+##
+## If you need to clear the cache of packages, update the number inside
+## cache-version as discussed at https://github.com/r-lib/actions/issues/86.
+## Note that you can always run a GHA test without the cache by using the word
+## "/nocache" in the commit message.
+env:
+  has_testthat: 'true'
+  cache-version: 'cache-v1'
+  bioc_version: 'bioc-devel'
+  ## Valid options are:
+  ##    "bioc-release"
+  ##    "bioc-devel"
+  ##    or a specific number like "3.20"
+
+jobs:
+  bioc-config:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-bioc-matrix.outputs.matrix }}
+    steps:
+      ## Adapted from
+      ## https://runs-on.com/github-actions/the-matrix-strategy/#dynamic-matrix-generation
+      - id: set-bioc-matrix
+        run: |
+         bioc=$(curl -L https://bioconductor.org/config.yaml)
+         if [[ "$bioc_version" == "bioc-release" ]]; then
+           echo "Finding the latest BioC release version and the corresponding R version"
+           biocversion=$(echo "$bioc" | grep "release_version: " | grep -Eo "[0-9]{1}\.[0-9]{2}")
+           rversion=$(echo "$bioc" | grep "r_version_associated_with_release: " | grep -Eo "[0-9]{1}\.[0-9]{1}")
+           biocmajor=$(echo "$biocversion" | cut -c 1-1)
+           biocminor=$(echo "$biocversion" | cut -c 3-4)
+           bioccont=$(echo "bioconductor/bioconductor_docker:RELEASE_${biocmajor}_${biocminor}")
+         elif [[ "$bioc_version" == "bioc-devel" ]]; then
+           echo "Finding the latest BioC devel version and the corresponding R version"
+           biocversion=$(echo "$bioc" | grep "devel_version: " | grep -Eo "[0-9]{1}\.[0-9]{2}")
+           rversion_release=$(echo "$bioc" | grep "r_version_associated_with_release: " | grep -Eo "[0-9]{1}\.[0-9]{1}")
+           rversion_devel=$(echo "$bioc" | grep "r_version_associated_with_devel: " | grep -Eo "[0-9]{1}\.[0-9]{1}")
+           if [[ "$rversion_release" == "$rversion_devel" ]]; then
+             rversion=$(echo "$rversion_devel")
+           else
+             rversion="devel"
+           fi
+           bioccont="bioconductor/bioconductor_docker:devel"
+         else
+           echo "Finding the the R version for bioc version ${bioc_version}"
+           biocversion=$(echo "$bioc_version")
+           rversion=$(echo "$bioc" | sed -En "/r_ver_for_bioc_ver/,/release_dates/p" | grep "$bioc_version\":" | grep -Eo ": \"[0-9]{1}\.[0-9]{1}" | grep -Eo "[0-9]{1}\.[0-9]{1}")
+           biocmajor=$(echo "$biocversion" | cut -c 1-1)
+           biocminor=$(echo "$biocversion" | cut -c 3-4)
+           bioccont=$(echo "bioconductor/bioconductor_docker:RELEASE_${biocmajor}_${biocminor}")
+         fi
+         echo "Found these settings:"
+         echo "Bioconductor version: $biocversion, R version: $rversion, Bioconductor docker name: $bioccont"
+         echo "matrix={ \"config\": [{\"os\" : \"ubuntu-latest\", \"r\" : \"${rversion}\", \"bioc\" : \"${biocversion}\", \"cont\" : \"${bioccont}\"} , {\"os\" : \"macOS-latest\", \"r\" : \"${rversion}\", \"bioc\" : \"${biocversion}\"} , {\"os\" : \"windows-latest\", \"r\" : \"${rversion}\", \"bioc\" : \"${biocversion}\" }] }" >> "$GITHUB_OUTPUT"
+         ## If an OS is failing and you don't want to test it, manually remove it from the 'matrix' JSON entries above
+
+  build-check:
+    needs: bioc-config
+    strategy:
+      fail-fast: false
+      matrix: ${{fromJson(needs.bioc-config.outputs.matrix)}}
+    runs-on: ${{ matrix.config.os }}
+    name: ${{ matrix.config.os }} (${{ matrix.config.r }})
+    container: ${{ matrix.config.cont }}
+    env:
+      R_REMOTES_NO_ERRORS_FROM_WARNINGS: true
+      NOT_CRAN: true
+      TZ: UTC
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+
+      ## Most of these steps are the same as the ones in
+      ## https://github.com/r-lib/actions/blob/master/examples/check-standard.yaml
+      ## If they update their steps, we will also need to update ours.
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      ## R is already included in the Bioconductor docker images
+      - name: Setup R from r-lib
+        if: runner.os != 'Linux'
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: ${{ matrix.config.r }}
+          http-user-agent: ${{ matrix.config.http-user-agent }}
+
+      ## pandoc is already included in the Bioconductor docker images
+      - name: Setup pandoc from r-lib
+        if: runner.os != 'Linux'
+        uses: r-lib/actions/setup-pandoc@v2
+
+      ## Create the path that will be used for caching packages on Linux
+      - name: Create R_LIBS_USER on Linux
+        if: runner.os == 'Linux'
+        run: |
+          R_LIBS_USER=/__w/_temp/Library
+          echo "R_LIBS_USER=$R_LIBS_USER" >> "$GITHUB_ENV"
+          mkdir -p $R_LIBS_USER
+
+      ## Use cached R packages
+      - name: Restore R package cache
+        if: "!contains(github.event.head_commit.message, '/nocache')"
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.R_LIBS_USER }}
+          key: ${{ matrix.config.os }}-${{ matrix.config.r }}-${{ matrix.config.bioc }}-${{ env.cache-version }}-${{ hashFiles('DESCRIPTION') }}
+          restore-keys: ${{ matrix.config.os }}-${{ matrix.config.r }}-${{ matrix.config.bioc }}-${{ env.cache-version }}-
+
+      ## remotes is needed for isntalling the Linux system dependencies
+      ## as well as other R packages later on.
+      - name: Install remotes
+        run: |
+          message(paste('****', Sys.time(), 'installing remotes ****'))
+          install.packages('remotes')
+        shell: Rscript {0}
+
+      ## This will work again once https://github.com/r-lib/remotes/commit/0e4e23051041d9f1b15a5ab796defec31af6190d
+      ## makes it to the CRAN version of remotes
+
+      # - name: Install Linux system dependencies
+      #   if: runner.os == 'Linux'
+      #   run: |
+      #     sysreqs=$(Rscript -e 'cat("apt-get update -y && apt-get install -y", paste(gsub("apt-get install -y ", "", remotes::system_requirements("ubuntu", "24.04")), collapse = " "))')
+      #     echo $sysreqs
+      #     sudo -s eval "$sysreqs"
+
+      - name: Install macOS system dependencies
+        if: matrix.config.os == 'macOS-latest'
+        run: |
+          ## Enable installing XML from source if needed
+          brew install libxml2
+          echo "XML_CONFIG=/usr/local/opt/libxml2/bin/xml2-config" >> $GITHUB_ENV
+
+          ## Required to install magick as noted at
+          ## https://github.com/r-lib/usethis/commit/f1f1e0d10c1ebc75fd4c18fa7e2de4551fd9978f#diff-9bfee71065492f63457918efcd912cf2
+          brew install imagemagick@6
+
+          ## For textshaping, required by ragg, and required by pkgdown
+          brew install harfbuzz fribidi
+
+          ## For installing usethis's dependency gert
+          brew install libgit2
+
+          ## Required for tcltk
+          brew install xquartz --cask
+
+      - name: Install Windows system dependencies
+        if: runner.os == 'Windows'
+        run: |
+          ## Edit below if you have any Windows system dependencies
+        shell: Rscript {0}
+
+      - name: Install BiocManager
+        run: |
+          message(paste('****', Sys.time(), 'installing BiocManager ****'))
+          remotes::install_cran("BiocManager")
+        shell: Rscript {0}
+
+      - name: Set BiocVersion
+        run: |
+          BiocManager::install(version = "${{ matrix.config.bioc }}", ask = FALSE, force = TRUE)
+        shell: Rscript {0}
+
+      - name: Install rcmdcheck
+        run: |
+          ## R CMD check runs on every OS. install.packages only warns on a
+          ## failed install, so verify the package is actually present to fail
+          ## here with a clear error instead of later.
+          message(paste('****', Sys.time(), 'installing rcmdcheck ****'))
+          BiocManager::install("rcmdcheck", ask = FALSE, update = FALSE)
+          if (!requireNamespace("rcmdcheck", quietly = TRUE)) stop("rcmdcheck failed to install")
+        shell: Rscript {0}
+
+      - name: Install BiocCheck
+        ## BiocCheck (via biocViews -> Biobase) does not build reliably from
+        ## source on the Windows/macOS devel runners, so run it on Linux only,
+        ## where the Bioconductor container ships it prebuilt. R CMD check still
+        ## runs on all three OSes.
+        if: runner.os == 'Linux'
+        run: |
+          message(paste('****', Sys.time(), 'installing BiocCheck ****'))
+          BiocManager::install("BiocCheck", ask = FALSE, update = FALSE)
+          if (!requireNamespace("BiocCheck", quietly = TRUE)) stop("BiocCheck failed to install")
+        shell: Rscript {0}
+
+      - name: Install dependencies pass 1
+        run: |
+          ## Try installing the package dependencies in steps. First the local
+          ## dependencies, then any remaining dependencies to avoid the
+          ## issues described at
+          ## https://stat.ethz.ch/pipermail/bioc-devel/2020-April/016675.html
+          ## https://github.com/r-lib/remotes/issues/296
+          ## Ideally, all dependencies should get installed in the first pass.
+
+          ## Pass #1 at installing dependencies
+          message(paste('****', Sys.time(), 'pass number 1 at installing dependencies: local dependencies ****'))
+          remotes::install_local(dependencies = TRUE, repos = BiocManager::repositories(), build_vignettes = FALSE, upgrade = TRUE)
+        continue-on-error: true
+        shell: Rscript {0}
+
+      - name: Install dependencies pass 2
+        run: |
+          ## Pass #2 at installing dependencies
+          message(paste('****', Sys.time(), 'pass number 2 at installing dependencies: any remaining dependencies ****'))
+          remotes::install_local(dependencies = TRUE, repos = BiocManager::repositories(), build_vignettes = FALSE, upgrade = TRUE, force = TRUE)
+        shell: Rscript {0}
+
+      - name: Session info
+        run: |
+          options(width = 100)
+          pkgs <- installed.packages()[, "Package"]
+          sessioninfo::session_info(pkgs, include_base = TRUE)
+        shell: Rscript {0}
+
+      - name: Run CMD check
+        env:
+          _R_CHECK_CRAN_INCOMING_: false
+          DISPLAY: 99.0
+        run: |
+          options(crayon.enabled = TRUE)
+          rcmdcheck::rcmdcheck(
+              args = c("--no-manual", "--no-vignettes", "--timings"),
+              build_args = c("--no-manual", "--keep-empty-dirs", "--no-resave-data"),
+              error_on = "warning",
+              check_dir = "check"
+          )
+        shell: Rscript {0}
+
+      ## Might need an to add this to the if:  && runner.os == 'Linux'
+      - name: Reveal testthat details
+        if:  env.has_testthat == 'true'
+        run: find . -name testthat.Rout -exec cat '{}' ';'
+
+      - name: Run BiocCheck
+        if: runner.os == 'Linux'
+        env:
+          DISPLAY: 99.0
+        run: |
+          BiocCheck::BiocCheck(
+              dir('check', 'tar.gz$', full.names = TRUE),
+              `quit-with-status` = TRUE,
+              `no-check-R-ver` = TRUE,
+              `no-check-bioc-help` = TRUE
+          )
+        shell: Rscript {0}
+
+      - name: Upload check results
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ runner.os }}-${{ matrix.config.r }}-${{ matrix.config.bioc }}-results
+          path: check
