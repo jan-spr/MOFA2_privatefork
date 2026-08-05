@@ -9,8 +9,7 @@ status](http://www.bioconductor.org/shields/build/release/bioc/MOFA2.svg)](https
 status](http://www.bioconductor.org/shields/build/devel/bioc/MOFA2.svg)](https://bioconductor.org/checkResults/devel/bioc-LATEST/MOFA2)
 [![Bioc
 history](https://bioconductor.org/shields/years-in-bioc/MOFA2.svg)](https://bioconductor.org/packages/release/bioc/html/MOFA2.html#since)
-[![Bioc last
-commit](https://bioconductor.org/shields/lastcommit/devel/bioc/MOFA2.svg)](http://bioconductor.org/checkResults/devel/bioc-LATEST/MOFA2/)
+[![check-bioc](https://github.com/jan-spr/MOFA2_privatefork/actions/workflows/check-bioc.yml/badge.svg)](https://github.com/jan-spr/MOFA2_privatefork/actions/workflows/check-bioc.yml)
 <!-- badges: end -->
 
 MOFA is a factor analysis model that provides a general framework for
