@@ -3,13 +3,10 @@
 
 <!-- badges: start -->
 
-[![Bioc release
-status](http://www.bioconductor.org/shields/build/release/bioc/MOFA2.svg)](https://bioconductor.org/checkResults/release/bioc-LATEST/MOFA2)
-[![Bioc devel
-status](http://www.bioconductor.org/shields/build/devel/bioc/MOFA2.svg)](https://bioconductor.org/checkResults/devel/bioc-LATEST/MOFA2)
-[![Bioc
-history](https://bioconductor.org/shields/years-in-bioc/MOFA2.svg)](https://bioconductor.org/packages/release/bioc/html/MOFA2.html#since)
-[![check-bioc](https://github.com/jan-spr/MOFA2_privatefork/actions/workflows/check-bioc.yml/badge.svg)](https://github.com/jan-spr/MOFA2_privatefork/actions/workflows/check-bioc.yml)
+|Environment|Status|
+|---|---|
+|BioC-release|[![Release OK](https://bioconductor.org/shields/build/release/bioc/basilisk.svg)](https://bioconductor.org/checkResults/release/bioc-LATEST/basilisk/)|
+|BioC-devel|[![Devel OK](https://bioconductor.org/shields/build/devel/bioc/basilisk.svg)](https://bioconductor.org/checkResults/devel/bioc-LATEST/basilisk/)|
 <!-- badges: end -->
 
 MOFA is a factor analysis model that provides a general framework for
