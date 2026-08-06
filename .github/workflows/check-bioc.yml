@@ -131,7 +131,7 @@ jobs:
       ## Use cached R packages
       - name: Restore R package cache
         if: "!contains(github.event.head_commit.message, '/nocache')"
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ env.R_LIBS_USER }}
           key: ${{ matrix.config.os }}-${{ matrix.config.r }}-${{ matrix.config.bioc }}-${{ env.cache-version }}-${{ hashFiles('DESCRIPTION') }}
@@ -192,6 +192,28 @@ jobs:
           BiocManager::install(version = "${{ matrix.config.bioc }}", ask = FALSE, force = TRUE)
         shell: Rscript {0}
 
+      - name: Install rcmdcheck
+        run: |
+          ## R CMD check runs on every OS. install.packages only warns on a
+          ## failed install, so verify the package is actually present to fail
+          ## here with a clear error instead of later.
+          message(paste('****', Sys.time(), 'installing rcmdcheck ****'))
+          BiocManager::install("rcmdcheck", ask = FALSE, update = FALSE)
+          if (!requireNamespace("rcmdcheck", quietly = TRUE)) stop("rcmdcheck failed to install")
+        shell: Rscript {0}
+
+      - name: Install BiocCheck
+        ## BiocCheck (via biocViews -> Biobase) does not build reliably from
+        ## source on the Windows/macOS devel runners, so run it on Linux only,
+        ## where the Bioconductor container ships it prebuilt. R CMD check still
+        ## runs on all three OSes.
+        if: runner.os == 'Linux'
+        run: |
+          message(paste('****', Sys.time(), 'installing BiocCheck ****'))
+          BiocManager::install("BiocCheck", ask = FALSE, update = FALSE)
+          if (!requireNamespace("BiocCheck", quietly = TRUE)) stop("BiocCheck failed to install")
+        shell: Rscript {0}
+
       - name: Install dependencies pass 1
         run: |
           ## Try installing the package dependencies in steps. First the local
@@ -200,10 +222,6 @@ jobs:
           ## https://stat.ethz.ch/pipermail/bioc-devel/2020-April/016675.html
           ## https://github.com/r-lib/remotes/issues/296
           ## Ideally, all dependencies should get installed in the first pass.
-
-          ## For running the checks
-          message(paste('****', Sys.time(), 'installing rcmdcheck and BiocCheck ****'))
-          install.packages(c("rcmdcheck", "BiocCheck"), repos = BiocManager::repositories())
 
           ## Pass #1 at installing dependencies
           message(paste('****', Sys.time(), 'pass number 1 at installing dependencies: local dependencies ****'))
@@ -215,7 +233,7 @@ jobs:
         run: |
           ## Pass #2 at installing dependencies
           message(paste('****', Sys.time(), 'pass number 2 at installing dependencies: any remaining dependencies ****'))
-          remotes::install_local(dependencies = TRUE, repos = BiocManager::repositories(), build_vignettes = TRUE, upgrade = TRUE, force = TRUE)
+          remotes::install_local(dependencies = TRUE, repos = BiocManager::repositories(), build_vignettes = FALSE, upgrade = TRUE, force = TRUE)
         shell: Rscript {0}
 
       - name: Session info
@@ -245,6 +263,7 @@ jobs:
         run: find . -name testthat.Rout -exec cat '{}' ';'
 
       - name: Run BiocCheck
+        if: runner.os == 'Linux'
         env:
           DISPLAY: 99.0
         run: |
