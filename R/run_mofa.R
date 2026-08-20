@@ -76,26 +76,8 @@ run_mofa <- function(object, outfile = NULL, save_data = TRUE, use_basilisk = FA
     have_mofa2 <- py_module_available("mofapy2")
     if (have_mofa2) {
       mofa <- import("mofapy2")
-
-      tryCatch(tmp <- strsplit(mofa$version$`__version__`,"\\.")[[1]], error = function(e) { stop(sprintf("mofapy2 is not detected in the specified python binary, see reticulate::py_config(). Consider setting use_basilisk = TRUE to create a python environment with basilisk (https://bioconductor.org/packages/release/bioc/html/basilisk.html)")) })
       
-      v_major_reticulate = tmp[1]; v_minor_reticulate = tmp[2]; v_patch_reticulate = tmp[3]
-      
-      tmp <- strsplit(.mofapy2_version,"\\.")[[1]]
-      v_major_pypi = tmp[1]; v_minor_pypi = tmp[2]; v_patch_pypi = tmp[3]
-      
-      # return error if major or minor versions do not agree
-      if ((v_major_reticulate!=v_major_pypi) | (v_minor_reticulate!=v_minor_pypi)) {
-        warning(sprintf("The latest mofapy2 version is %s, you are using %s. Please upgrade with 'pip install mofapy2'",.mofapy2_version, mofa$version$`__version__`))
-        warning("Connecting to the latest mofapy2 python package using reticulate (use_basilisk = FALSE)")
-        have_mofa2 <- FALSE
-      }
-      
-      # return warning if patch versions do not agree
-      if (v_patch_reticulate!=v_patch_pypi) {
-        warning(sprintf("The latest mofapy2 version is %s, you are using %s. Please upgrade with 'pip install mofapy2'",.mofapy2_version, mofa$version$`__version__`))
-      }
-      
+      .check_mofapy2_version(mofa$version$`__version__`)
     }
     if (have_mofa2) {
       .run_mofa_reticulate(object, outfile, save_data)
@@ -126,8 +108,50 @@ run_mofa <- function(object, outfile = NULL, save_data = TRUE, use_basilisk = FA
 
 
 
+# Check the mofapy2 version reticulate found against the one MOFA2 targets:
+# major or minor mismatch -> error, patch -> warning if behind, note if ahead.
+# 'pin_str' is a parameter so the tests can pass versions without a python install.
+.check_mofapy2_version <- function(inst_str, pin_str = .mofapy2_version) {
+
+  parse_version <- function(x) tryCatch(package_version(x), error = function(e) NULL)
+
+  v_inst <- parse_version(inst_str)
+  v_pin  <- parse_version(pin_str)
+
+  # non-numeric (e.g. PEP 440 "0.7.4.dev0") cannot be ordered -> error
+  if (is.null(v_inst) || is.null(v_pin)) {
+    stop(sprintf("Could not parse the mofapy2 version '%s' (MOFA2 targets %s). Only numeric versions are supported.",
+                 inst_str, pin_str))
+  }
+
+  version_behind <- (v_inst < v_pin)
+  direction <- if (version_behind) "behind" else "ahead of"
+
+  if (v_inst$major != v_pin$major) {
+    # major mismatch: the mofapy2 interface may have changed -> error
+    stop(sprintf("mofapy2 %s is a major version %s the %s that MOFA2 targets. In a new R session, select a matching install with e.g. reticulate::py_require('mofapy2==%s'), or set use_basilisk = TRUE.",
+                 v_inst, direction, pin_str, pin_str))
+  } else if (v_inst$minor != v_pin$minor) {
+    # minor mismatch: the mofapy2 interface may have changed -> error
+    stop(sprintf("mofapy2 %s is a minor version %s the %s that MOFA2 targets. In a new R session, select a matching install with e.g. reticulate::py_require('mofapy2==%s'), or set use_basilisk = TRUE.",
+                 v_inst, direction, pin_str, pin_str))
+  } else if (v_inst != v_pin) {
+    # patch mismatch: warning if behind, note if ahead
+    if (version_behind) {
+      warning(sprintf("mofapy2 %s is a patch release behind the %s that MOFA2 targets. Training likely works, but consider pinning it via e.g. reticulate::py_require('mofapy2==%s') in a new R session.",
+                      v_inst, pin_str, pin_str))
+    } else {
+      message(sprintf("Note: mofapy2 %s is a patch release ahead of the %s that MOFA2 targets. This is expected to be compatible.",
+                      v_inst, pin_str))
+    }
+  }
+
+  invisible(TRUE)
+}
+
+
 .run_mofa_reticulate <- function(object, outfile, save_data) {
-  
+
   # sanity checks
   if (!is(object, "MOFA")) stop("'object' has to be an instance of MOFA")
   if (!requireNamespace("reticulate", quietly = TRUE)) {
