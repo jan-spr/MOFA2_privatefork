@@ -9,7 +9,7 @@
 #' In this step the R package calls the \code{mofapy2} Python package, where model training is performed. \cr
 #' 
 #' The interface with Python is done with the \code{\link{reticulate}} package. 
-#' The simplest option is \code{\link[reticulate]{py_require}} (e.g. \code{reticulate::py_require("mofapy2==0.7.3", python_version = "3.12")})
+#' The simplest option is \code{\link[reticulate]{py_require}} (e.g. \code{reticulate::py_require("mofapy2==0.7.4", python_version = "3.12")})
 #' which prepares an isolated python environment with \code{mofapy2};
 #' to use an existing python installation/environment instead, point reticulate at it with \code{\link[reticulate]{use_python}}. 
 #' Alternatively, set \code{use_basilisk = TRUE} to let us install mofapy2 for you in a dedicated Python environment via \code{basilisk} (not recommended on Windows).
@@ -36,7 +36,7 @@
 #' 
 #' # A. Run the MOFA model via reticulate
 #' \dontrun{ 
-#' reticulate::py_require("mofapy2==0.7.3", python_version = "3.12")
+#' reticulate::py_require("mofapy2==0.7.4", python_version = "3.12")
 #' MOFAmodel <- run_mofa(MOFAmodel)}
 #' 
 #' # B. Run the MOFA model using basilisk

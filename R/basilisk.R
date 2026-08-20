@@ -20,7 +20,7 @@
 #   - run_mofa() roxygen @details and @examples
 #   - vignettes/getting_started_R.Rmd, vignettes/MEFISTO_temporal.Rmd
 #   - gh-pages - currently not pinned: installation.md, troubleshooting.md, gpu_training.md
-.mofapy2_version <- "0.7.3"
+.mofapy2_version <- "0.7.4"
 
 #' @importFrom basilisk BasiliskEnvironment
 mofa_env <- BasiliskEnvironment("mofa_env", pkgname="MOFA2", packages=.mofapy2_dependencies, pip = paste0("mofapy2==",.mofapy2_version))
