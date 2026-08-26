@@ -9,16 +9,17 @@
 #' In this step the R package calls the \code{mofapy2} Python package, where model training is performed. \cr
 #' 
 #' The interface with Python is done with the \code{\link{reticulate}} package. 
-#' The simplest option is \code{\link[reticulate]{py_require}} (e.g. \code{reticulate::py_require("mofapy2==0.7.4", python_version = "3.12")})
-#' which prepares an isolated python environment with \code{mofapy2};
-#' to use an existing python installation/environment instead, point reticulate at it with \code{\link[reticulate]{use_python}}. 
-#' Alternatively, set \code{use_basilisk = TRUE} to let us install mofapy2 for you in a dedicated Python environment via \code{basilisk} (not recommended on Windows).
+#' Setting \code{use_basilisk = TRUE} needs no Python setup: \code{basilisk} provisions a dedicated environment
+#' on first use, pinned to the \code{mofapy2} version MOFA2 targets.
+#' Otherwise mofapy2 is taken from whichever Python you point reticulate at, either by declaring it with \code{\link[reticulate]{py_require}}
+#' (e.g. \code{reticulate::py_require("mofapy2==0.7.5", python_version = "3.12")}) or by selecting an existing installation with \code{\link[reticulate]{use_python}}.
+#' See the \href{https://biofam.github.io/MOFA2/installation.html#notes-on-the-connection-of-r-to-python}{installation notes} for more details.
 #' @param object an untrained \code{\link{MOFA}} object
 #' @param save_data logical indicating whether to save the training data in the hdf5 file. 
 #' This is useful for some downstream analysis (mainly functions with the prefix \code{plot_data}), but it can take a lot of disk space.
 #' @param outfile output file for the model (.hdf5 format). If \code{NULL}, a temporary file is created.
 #' @param use_basilisk use \code{basilisk} to automatically provision a Python environment with mofapy2 and all dependencies. 
-#' If \code{FALSE} (default), python will be used through \code{reticulate} - this needs to be set up e.g. via \code{\link[reticulate]{py_require}} or \code{\link[reticulate]{use_python}}.
+#' If \code{FALSE} (default), python will be used directly via \code{reticulate} - this needs to be set up beforehand, e.g. with \code{\link[reticulate]{py_require}} or \code{\link[reticulate]{use_python}}.
 #' @return a trained \code{\link{MOFA}} object
 #' @import reticulate
 #' @import basilisk
@@ -34,14 +35,14 @@
 #' # Prepare the MOFA object with default options
 #' MOFAmodel <- prepare_mofa(MOFAmodel)
 #' 
-#' # A. Run the MOFA model via reticulate
-#' \dontrun{ 
-#' reticulate::py_require("mofapy2==0.7.4", python_version = "3.12")
-#' MOFAmodel <- run_mofa(MOFAmodel)}
-#' 
-#' # B. Run the MOFA model using basilisk
+#' # A. Run the MOFA model using basilisk
 #' \dontrun{
-#' MOFAmodel <- run_mofa(MOFAmodel, use_basilisk = TRUE) }
+#' MOFAmodel <- run_mofa(MOFAmodel, use_basilisk = TRUE)}
+#' 
+#' # B. Run the MOFA model via reticulate
+#' \dontrun{ 
+#' reticulate::py_require("mofapy2==0.7.5", python_version = "3.12")
+#' MOFAmodel <- run_mofa(MOFAmodel)}
 run_mofa <- function(object, outfile = NULL, save_data = TRUE, use_basilisk = FALSE) {
   
   # Sanity checks
@@ -68,7 +69,7 @@ run_mofa <- function(object, outfile = NULL, save_data = TRUE, use_basilisk = FA
   if (!use_basilisk) {
 
     message(sprintf("Connecting to the mofapy2 python package using reticulate (use_basilisk = FALSE)... 
-    Please make sure mofapy2 is available to reticulate, e.g. by declaring it with reticulate::py_require('mofapy2==%s') or by selecting an existing installation with reticulate::use_python('/path/to/python', required = TRUE).
+    Please make sure mofapy2 is available to reticulate, e.g. by declaring it with reticulate::py_require('mofapy2==%s') or by specifying an existing installation with reticulate::use_python('/path/to/python').
     If you prefer to let us automatically install a Python environment with 'mofapy2' installed using the 'basilisk' package, please use the argument 'use_basilisk = TRUE'\n", .mofapy2_version))
     
     # Sanity checks
