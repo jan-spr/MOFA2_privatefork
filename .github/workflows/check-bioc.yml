@@ -181,6 +181,13 @@ jobs:
           ## Edit below if you have any Windows system dependencies
         shell: Rscript {0}
 
+      # Add the patch here
+      - name: Patch assorthead (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          sed -i '1i #include <algorithm>' "${R_LIBS_USER}/assorthead/include/knncolle/L2Normalized.hpp"
+        shell: bash
+
       - name: Install BiocManager
         run: |
           message(paste('****', Sys.time(), 'installing BiocManager ****'))
