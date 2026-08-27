@@ -181,13 +181,6 @@ jobs:
           ## Edit below if you have any Windows system dependencies
         shell: Rscript {0}
 
-      # Add the patch here
-      - name: Patch assorthead (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          sed -i '1i #include <algorithm>' "${R_LIBS_USER}/assorthead/include/knncolle/L2Normalized.hpp"
-        shell: bash
-
       - name: Install BiocManager
         run: |
           message(paste('****', Sys.time(), 'installing BiocManager ****'))
@@ -235,7 +228,14 @@ jobs:
           remotes::install_local(dependencies = TRUE, repos = BiocManager::repositories(), build_vignettes = FALSE, upgrade = TRUE)
         continue-on-error: true
         shell: Rscript {0}
-
+      
+      # --- ADD THE PATCH HERE ---
+      - name: Patch assorthead (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          sed -i '1i #include <algorithm>' "${R_LIBS_USER}/assorthead/include/knncolle/L2Normalized.hpp"
+        shell: bash
+      
       - name: Install dependencies pass 2
         run: |
           ## Pass #2 at installing dependencies
