@@ -217,7 +217,7 @@ jobs:
       - name: Install assorthead from GitHub (Windows)
         if: runner.os == 'Windows'
         run: |
-          remotes::install_github("LTLA/assorthead", ref = "main")  # or a specific branch/PR
+          remotes::install_github("LTLA/assorthead", ref = "master")  # or a specific branch/PR
         shell: Rscript {0}
 
       - name: Install dependencies pass 1
